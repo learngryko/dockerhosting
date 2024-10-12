@@ -1,6 +1,6 @@
 # dockerhosting
 
-### Updated High-Level Plan
+## Updated High-Level Plan
 
 1.  **Frontend (React):**
 
@@ -91,7 +91,7 @@
 
 
 
-### Updated Plan with Requirements
+## Updated Plan with Requirements
 
 #### **Front-end (HTML, CSS, JS):**
 
