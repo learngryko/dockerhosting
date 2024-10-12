@@ -30,7 +30,6 @@ services:
       dockerfile: Dockerfile  # Django's Dockerfile
     volumes:
       - ./backend:/app  # Mount your backend code for live development
-    command: python manage.py runserver 0.0.0.0:8000  # Run Django's dev server
     environment:
       DEBUG: 1
       DJANGO_ALLOWED_HOSTS: localhost 127.0.0.1 [::1]

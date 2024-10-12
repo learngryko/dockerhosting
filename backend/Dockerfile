@@ -18,4 +18,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8000
 
 # Command to run the Django development server
-CMD ["sh", "-c", "if [ ! -f manage.py ]; then django-admin startproject project .; fi && python manage.py runserver 0.0.0.0:8000"]
+CMD ["sh", "-c", "if [ ! -f manage.py ]; then django-admin startproject project . && cd project && django-admin startapp app; fi && python manage.py runserver 0.0.0.0:8000"]
