@@ -5,6 +5,15 @@ FROM python:3.9
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+ARG DJANGO_SUPERUSER_USERNAME
+ARG DJANGO_SUPERUSER_EMAIL
+ARG DJANGO_SUPERUSER_PASSWORD
+
+# Set environment variables for Django superuser (runtime)
+ENV DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
+ENV DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
+ENV DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
+
 # Set the working directory in the container
 WORKDIR /app
 
@@ -17,5 +26,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Expose the port that the Django app runs on
 EXPOSE 8000
 
-# Command to run the Django development server
-CMD ["sh", "-c", "if [ ! -f manage.py ]; then django-admin startproject project . && cd project && django-admin startapp app; fi && python manage.py runserver 0.0.0.0:8000"]
+# Check if manage.py exists; if not, initialize Django project
+RUN sh -c 'if [ ! -f manage.py ]; then django-admin startproject project .; fi'
+
+# Check if app exists; if not, create Django app
+RUN sh -c 'if [ ! -d project/app ]; then cd project && django-admin startapp app; fi'

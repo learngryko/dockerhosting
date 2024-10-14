@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   # PostgreSQL Database
   db:
@@ -13,26 +15,32 @@ services:
 
   # Docker-in-Docker
   dind:
-    image: docker:24-dind
-    privileged: true
+    image: docker:24.0.1-dind  # Use a stable DinD image
+    privileged: true  # Required to run Docker inside Docker
     environment:
-      DOCKER_TLS_CERTDIR: "/certs"
-    volumes:
-      - /var/lib/docker
+      DOCKER_TLS_CERTDIR: "/certs"  # Disable TLS for simplicity in local dev
+    networks:
+      - app-network
+    expose:
+      - "2375"  # Docker daemon port
     ports:
-      - "2375:2375" # Docker daemon port to allow access
+      - "2375:2375"  # Open port 2375 for communication
 
   # Django Backend
   django:
     build:
       context: ./backend
+      args:
+        DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME}
+        DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL}
+        DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
       dockerfile: Dockerfile  # Django's Dockerfile
     volumes:
       - ./backend:/app  # Mount your backend code for live development
     environment:
       DEBUG: 1
-      DJANGO_ALLOWED_HOSTS: localhost 127.0.0.1 [::1]
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DJANGO_ALLOWED_HOSTS: "localhost, 127.0.0.1, [::1]"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}  # Correctly formatted
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -40,6 +48,11 @@ services:
       - db
     ports:
       - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+            python manage.py createsuperuser --no-input || true &&
+            python manage.py runserver 0.0.0.0:8000"
+
 
   # React Frontend
   react:
