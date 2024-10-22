@@ -16,7 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from project.app.views import CloneRepositoryView, ListFilesView, FileContentView, CSRFTokenView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('clone-repo/', CloneRepositoryView.as_view(), name='clone_repository'),
+    path('projects/<str:project_name>/files/', ListFilesView.as_view(), name='list_files'),
+    path('projects/<str:project_name>/files/<str:file_path>/', FileContentView.as_view(), name='file_content'),
+    path('get-csrf-token/', CSRFTokenView.as_view(), name='get_csrf_token'),
 ]

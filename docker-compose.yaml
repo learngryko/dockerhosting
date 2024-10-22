@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
     ports:
       - "5432:5432"
 
@@ -49,7 +51,8 @@ services:
     ports:
       - "8000:8000"
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "python manage.py makemigrations &&
+            python manage.py migrate &&
             python manage.py createsuperuser --no-input || true &&
             python manage.py runserver 0.0.0.0:8000"
 

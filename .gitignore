@@ -32,6 +32,8 @@ media/
 staticfiles/
 *.DS_Store
 
+
+
 # Coverage reports
 htmlcov/
 coverage.xml

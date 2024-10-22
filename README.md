@@ -14,7 +14,7 @@
 3.  **Docker Integration:**
 
     -   Each project has a Dockerfile that is used to build the container when the user requests it.
-    -   Containers are managed via Docker's Python SDK (inside Django).
+    -   Containers are managed via Docker in docker container
     -   Users' code modifications are injected into the corresponding Docker volume or image before running the container.
 
 ### Feature Breakdown

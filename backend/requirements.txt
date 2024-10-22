@@ -1,5 +1,4 @@
 Django
 psycopg
 psycopg2
-docker
 GitPython

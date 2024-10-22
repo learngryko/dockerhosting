@@ -1,7 +1,7 @@
 from django.db import models
 
 class Project(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     description = models.TextField()
     repository_url = models.URLField()  # URL of the repository
     dockerfile_path = models.CharField(max_length=255, default='Dockerfile')  # Path to Dockerfile
@@ -26,6 +26,7 @@ class File(models.Model):
     project = models.ForeignKey(Project, related_name='files', on_delete=models.CASCADE)
     file_path = models.CharField(max_length=255)  # Path of the file in the repo
     content = models.TextField()  # Code content of the file
+    extension = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
