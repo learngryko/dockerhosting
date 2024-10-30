@@ -2,3 +2,4 @@ Django
 psycopg
 psycopg2
 GitPython
+docker

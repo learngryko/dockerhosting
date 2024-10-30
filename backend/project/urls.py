@@ -16,12 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from project.app.views import CloneRepositoryView, ListFilesView, FileContentView, CSRFTokenView
+from project.app.views import *
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('get-csrf-token/', CSRFTokenView.as_view(), name='get_csrf_token'),
     path('clone-repo/', CloneRepositoryView.as_view(), name='clone_repository'),
     path('projects/<str:project_name>/files/', ListFilesView.as_view(), name='list_files'),
     path('projects/<str:project_name>/files/<str:file_path>/', FileContentView.as_view(), name='file_content'),
-    path('get-csrf-token/', CSRFTokenView.as_view(), name='get_csrf_token'),
+    path('create-container/', CreateContainerView.as_view(), name='create_container'),  # Create container
+    path('containers/<str:project_name>/', ListContainersView.as_view(), name='list_containers'),  # List containers for a project
+    path('containers/<str:container_id>/start/', StartContainerView.as_view(), name='start_container'),  # Start a container
+    path('containers/<str:container_id>/stop/', StopContainerView.as_view(), name='stop_container'),  # Stop a container
+    path('projects/<str:project_name>/sync/', ProjectFilesSyncView.as_view(), name='sync_files'),
 ]

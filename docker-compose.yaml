@@ -15,16 +15,23 @@ services:
 
   # Docker-in-Docker
   dind:
-    image: docker:24.0.1-dind  # Use a stable DinD image
+    build:
+      context: ./dind
+      dockerfile: Dockerfile
     privileged: true  # Required to run Docker inside Docker
     environment:
-      DOCKER_TLS_CERTDIR: "/certs"  # Disable TLS for simplicity in local dev
+      DOCKER_TLS_CERTDIR: ""  # Disable TLS for simplicity in local dev
+      DJANGO_API_URL: http://django:8000/projects/
     networks:
       - app-network
     expose:
       - "2375"  # Docker daemon port
     ports:
       - "2375:2375"  # Open port 2375 for communication
+      - "5000:5000" # Open port 5000 for flask
+    volumes:
+      - /var/lib/docker
+      - ./backend/project/repositories:/repositories
 
   # Django Backend
   django:
@@ -34,18 +41,21 @@ services:
         DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME}
         DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL}
         DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
+        DJANGO_SECRET: ${DJANGO_SECRET}
       dockerfile: Dockerfile  # Django's Dockerfile
     volumes:
       - ./backend:/app  # Mount your backend code for live development
     environment:
       DEBUG: 1
-      DJANGO_ALLOWED_HOSTS: "localhost, 127.0.0.1, [::1]"
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}  # Correctly formatted
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DOCKER_HOST: "tcp://dind:2375"
+      DIND_SYNC_URL: "tcp://dind:5000"
     depends_on:
       - db
+      - dind
     networks:
       - app-network  # Add this to ensure Django is in the same network as dind
     ports:
@@ -55,6 +65,7 @@ services:
             python manage.py migrate &&
             python manage.py createsuperuser --no-input || true &&
             python manage.py runserver 0.0.0.0:8000"
+
 
 
   # React Frontend

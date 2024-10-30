@@ -4,7 +4,7 @@ class Project(models.Model):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField()
     repository_url = models.URLField()  # URL of the repository
-    dockerfile_path = models.CharField(max_length=255, default='Dockerfile')  # Path to Dockerfile
+    build_file_path = models.CharField(max_length=255, default='NOT SET')  # Path to Dockerfile / docker compose
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

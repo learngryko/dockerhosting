@@ -19,14 +19,15 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(@*w8#58lupsczjqt%syf&j4-(48-z7*89dgxvx#%%vmm7&+o*'
+SECRET_KEY = os.environ.get('DJANGO_SECRET')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
-
+DIND_URL=os.environ.get('DOCKER_HOST')
+DIND_SYNC_URL = os.environ.get('DIND_SYNC_URL')
 # Application definition
 
 INSTALLED_APPS = [
@@ -37,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'project.app',
-    # 'docker',
+    'docker',
     # 'GitPython',
 ]
 

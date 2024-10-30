@@ -3,11 +3,12 @@ import git
 import shutil  # for deleting the repo folder
 import logging
 import json
+import docker
 from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
-from .models import Project, File
+from .models import Project, File, Container, Environment
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
 
@@ -133,4 +134,234 @@ class CSRFTokenView(View):
         csrf_token = get_token(request)  # Get the CSRF token
         return JsonResponse({'csrfToken': csrf_token})
     
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class CreateContainerView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            project_name = data.get('project_name')
+            port = data.get('port', 2375)  # Default port
 
+            logger.info(f"Creating containers for project: {project_name}")
+
+            # Get the project by name
+            project = Project.objects.get(name=project_name)
+
+            # Set up Docker client
+            client = docker.DockerClient(base_url=settings.DIND_URL)
+
+            # Retrieve the build file path from the project
+            build_file_path = project.build_file_path
+            repo_dir = os.path.join(settings.BASE_DIR, 'repositories', project_name)
+            os.makedirs(repo_dir, exist_ok=True)
+
+            # Ensure a valid build file is set
+            if not build_file_path or build_file_path == 'NOT SET':
+                return JsonResponse({'status': 'error', 'message': 'Build file path is not set.'}, status=400)
+
+            # Fetch the build file from the database
+            build_file = File.objects.filter(project=project, file_path=build_file_path).first()
+            
+
+            # Check if the build file exists
+            if not build_file:
+                return JsonResponse({'status': 'error', 'message': f'Build file {build_file_path} not found.'}, status=404)
+
+            # Write the build file to disk  
+            build_file_content = build_file.content
+            build_file_path_on_disk = os.path.join(repo_dir, os.path.basename(build_file_path))
+            with open(build_file_path_on_disk, 'w') as f:
+                f.write(build_file_content)
+
+            # Retrieve environment variables and resource limits (if any)
+            environment = Environment.objects.filter(project=project).first()
+            env_vars = environment.env_vars if environment else {}
+            resource_limits = environment.resource_limits if environment else {}
+
+            # Prepare resource limit settings for Docker container (e.g., CPU and memory)
+            cpu_limit = resource_limits.get('cpu', None)
+            mem_limit = resource_limits.get('memory', None)
+
+            # If the build file is a Dockerfile, build and run the container
+            if 'Dockerfile' in build_file_path:
+                # Build the Docker image
+                image, logs = client.images.build(
+                    path=repo_dir,
+                    dockerfile=os.path.basename(build_file_path),
+                    tag=f"{project_name}_image"
+                )
+
+                # Run the container with environment variables and resource limits
+                container = client.containers.run(
+                    image=f"{project_name}_image",
+                    name=f"{project_name}_container",
+                    ports={f'{port}/tcp': port},
+                    detach=True,
+                    environment=env_vars,
+                    cpu_quota=int(float(cpu_limit) * 100000) if cpu_limit else None,
+                    mem_limit=mem_limit,
+                    volumes={f'/path/to/project/{project_name}': {'bind': '/app', 'mode': 'rw'}}  # Bind mount
+                )
+
+            # If the build file is a docker-compose.yml, use docker-compose to create containers
+            elif 'docker-compose.yml' in build_file_path:
+                # Write a modified docker-compose.yml with environment and resource limits, if needed
+                compose_path_on_disk = build_file_path_on_disk
+
+                # Assuming docker-compose.yml includes necessary env vars; you could modify it dynamically here
+                os.system(f"docker-compose -f {compose_path_on_disk} up -d")
+
+                return JsonResponse({'status': 'success', 'message': 'docker-compose used to create containers.'}, status=201)
+
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Invalid build file. Only Dockerfile or docker-compose.yml supported.'}, status=400)
+
+            # Save container details in the database
+            container_entry = Container.objects.create(
+                project=project,
+                container_id=container.id,
+                status=container.status,
+                port=port
+            )
+            logger.info(f"Container created succesfully for project: {project_name}")
+            # Clean up repo directory after use
+            shutil.rmtree(repo_dir)
+
+
+            return JsonResponse({'status': 'success', 'container_id': container.id, 'message': 'Container created successfully.'}, status=201)
+
+        except Project.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+        except docker.errors.DockerException as e:
+            logger.error(f"Docker error: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=500)
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class ListContainersView(View):
+    def get(self, request, project_name=None):
+        try:
+            # If project_name is provided, filter by project
+            if project_name:
+                project = Project.objects.get(name=project_name)
+                containers = Container.objects.filter(project=project)
+            else:
+                # If no project_name is provided, list all containers
+                containers = Container.objects.all()
+
+            # Build the response data
+            container_list = []
+            for container in containers:
+                container_list.append({
+                    'container_id': container.container_id,
+                    'project': container.project.name,
+                    'status': container.status,
+                    'port': container.port
+                })
+
+            return JsonResponse({'status': 'success', 'containers': container_list}, status=200)
+
+        except Project.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+
+
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class StartContainerView(View):
+    def post(self, request, container_id):
+        try:
+            # Ensure container_id is provided
+            if not container_id:
+                return JsonResponse({'status': 'error', 'message': 'Container ID is required.'}, status=400)
+
+            # Set up Docker client
+            client = docker.DockerClient(base_url=settings.DIND_URL)
+
+            # Get the container
+            container = client.containers.get(container_id)
+
+            # Start the container
+            container.start()
+
+            # Update the container status in the database
+            container_obj = Container.objects.get(container_id=container_id)
+            container_obj.status = 'running'
+            container_obj.save()
+
+            return JsonResponse({'status': 'success', 'message': f'Container {container_id} started successfully.'}, status=200)
+
+        except Container.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Container not found.'}, status=404)
+        except docker.errors.DockerException as e:
+            logger.error(f"Docker error: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=500)
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+
+
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class StopContainerView(View):
+    def post(self, request, container_id):
+        try:
+            # Ensure container_id is provided
+            if not container_id:
+                return JsonResponse({'status': 'error', 'message': 'Container ID is required.'}, status=400)
+
+            # Set up Docker client
+            client = docker.DockerClient(base_url=settings.DIND_URL)
+
+            # Get the container
+            container = client.containers.get(container_id)
+
+            # Stop the container
+            container.stop()
+
+            # Update the container status in the database
+            container_obj = Container.objects.get(container_id=container_id)
+            container_obj.status = 'stopped'
+            container_obj.save()
+
+            return JsonResponse({'status': 'success', 'message': f'Container {container_id} stopped successfully.'}, status=200)
+
+        except Container.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Container not found.'}, status=404)
+        except docker.errors.DockerException as e:
+            logger.error(f"Docker error: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=500)
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+
+
+class ProjectFilesSyncView(View):
+    def get(self, request, project_name):
+        try:
+            # Retrieve the project by name
+            project = Project.objects.get(name=project_name)
+
+            # Gather all files related to this project
+            files = File.objects.filter(project=project)
+
+            # Build a list of file details including paths and content
+            files_data = [
+                {
+                    'file_path': file.file_path,
+                    'content': file.content,
+                    'extension': file.extension,
+                    'updated_at': file.updated_at.isoformat()
+                }
+                for file in files
+            ]
+
+            return JsonResponse({'status': 'success', 'files': files_data}, status=200)
+
+        except Project.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
