@@ -14,7 +14,6 @@ from django.middleware.csrf import get_token
 
 # Set up a logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class CloneRepositoryView(View):
@@ -24,6 +23,7 @@ class CloneRepositoryView(View):
             repository_url = data.get('repository_url')
             project_name = data.get('project_name')
             project_description = data.get('description', '')
+            build_file_path = data.get('build_file_path','NOT SET')
 
             # Ensure project_name and repository_url are provided
             if not project_name or not repository_url:
@@ -39,7 +39,8 @@ class CloneRepositoryView(View):
             project = Project.objects.create(
                 name=project_name,
                 description=project_description.replace('\0', ''),  # Remove NUL bytes from description
-                repository_url=repository_url
+                repository_url=repository_url,
+                build_file_path = build_file_path
             )
 
             for root, dirs, files in os.walk(repo_dir):
@@ -140,95 +141,47 @@ class CreateContainerView(View):
         try:
             data = json.loads(request.body)
             project_name = data.get('project_name')
-            port = data.get('port', 2375)  # Default port
+            build_file_path = data.get('build_file_path', 'Dockerfile')  # Default to Dockerfile
+            port = data.get('port', 8080)
 
             logger.info(f"Creating containers for project: {project_name}")
 
-            # Get the project by name
+            # Fetch the project from the database
             project = Project.objects.get(name=project_name)
 
-            # Set up Docker client
+            # Set up the Docker client using the Docker-in-Docker host
             client = docker.DockerClient(base_url=settings.DIND_URL)
 
-            # Retrieve the build file path from the project
-            build_file_path = project.build_file_path
-            repo_dir = os.path.join(settings.BASE_DIR, 'repositories', project_name)
-            os.makedirs(repo_dir, exist_ok=True)
+            # Define the path to the build context inside the dind container
+            build_context_path = f"/app/repos/{project_name}"  # Path inside dind
+            dockerfile_path = f"{build_context_path}/{build_file_path}"  # Path to Dockerfile
 
-            # Ensure a valid build file is set
-            if not build_file_path or build_file_path == 'NOT SET':
-                return JsonResponse({'status': 'error', 'message': 'Build file path is not set.'}, status=400)
+            logger.info(f"Building Docker image with context: {build_context_path} and dockerfile: {dockerfile_path}")
 
-            # Fetch the build file from the database
-            build_file = File.objects.filter(project=project, file_path=build_file_path).first()
-            
-
-            # Check if the build file exists
-            if not build_file:
-                return JsonResponse({'status': 'error', 'message': f'Build file {build_file_path} not found.'}, status=404)
-
-            # Write the build file to disk  
-            build_file_content = build_file.content
-            build_file_path_on_disk = os.path.join(repo_dir, os.path.basename(build_file_path))
-            with open(build_file_path_on_disk, 'w') as f:
-                f.write(build_file_content)
-
-            # Retrieve environment variables and resource limits (if any)
-            environment = Environment.objects.filter(project=project).first()
-            env_vars = environment.env_vars if environment else {}
-            resource_limits = environment.resource_limits if environment else {}
-
-            # Prepare resource limit settings for Docker container (e.g., CPU and memory)
-            cpu_limit = resource_limits.get('cpu', None)
-            mem_limit = resource_limits.get('memory', None)
-
-            # If the build file is a Dockerfile, build and run the container
-            if 'Dockerfile' in build_file_path:
-                # Build the Docker image
-                image, logs = client.images.build(
-                    path=repo_dir,
-                    dockerfile=os.path.basename(build_file_path),
-                    tag=f"{project_name}_image"
-                )
-
-                # Run the container with environment variables and resource limits
-                container = client.containers.run(
-                    image=f"{project_name}_image",
-                    name=f"{project_name}_container",
-                    ports={f'{port}/tcp': port},
-                    detach=True,
-                    environment=env_vars,
-                    cpu_quota=int(float(cpu_limit) * 100000) if cpu_limit else None,
-                    mem_limit=mem_limit,
-                    volumes={f'/path/to/project/{project_name}': {'bind': '/app', 'mode': 'rw'}}  # Bind mount
-                )
-
-            # If the build file is a docker-compose.yml, use docker-compose to create containers
-            elif 'docker-compose.yml' in build_file_path:
-                # Write a modified docker-compose.yml with environment and resource limits, if needed
-                compose_path_on_disk = build_file_path_on_disk
-
-                # Assuming docker-compose.yml includes necessary env vars; you could modify it dynamically here
-                os.system(f"docker-compose -f {compose_path_on_disk} up -d")
-
-                return JsonResponse({'status': 'success', 'message': 'docker-compose used to create containers.'}, status=201)
-
-            else:
-                return JsonResponse({'status': 'error', 'message': 'Invalid build file. Only Dockerfile or docker-compose.yml supported.'}, status=400)
-
-            # Save container details in the database
-            container_entry = Container.objects.create(
-                project=project,
-                container_id=container.id,
-                status=container.status,
-                port=port
+            # Build the Docker image
+            image, build_logs = client.images.build(
+                path=build_context_path,  # This is the directory containing the Dockerfile
+                dockerfile=build_file_path,  # Just the filename if the path is correct
+                tag=f"{project_name}_image"
             )
-            logger.info(f"Container created succesfully for project: {project_name}")
-            # Clean up repo directory after use
-            shutil.rmtree(repo_dir)
 
+            # Log the build output
+            for log in build_logs:
+                logger.info(log)
 
-            return JsonResponse({'status': 'success', 'container_id': container.id, 'message': 'Container created successfully.'}, status=201)
+            # Run the container
+            container = client.containers.run(
+                image=f"{project_name}_image",
+                ports={f"{port}/tcp": port},
+                detach=True,
+                name=f"{project_name}_container"
+            )
+
+            return JsonResponse({
+                'status': 'success',
+                'container_id': container.id,
+                'message': 'Container created successfully.'
+            }, status=201)
 
         except Project.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
@@ -238,6 +191,8 @@ class CreateContainerView(View):
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+
+
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class ListContainersView(View):
@@ -343,6 +298,7 @@ class ProjectFilesSyncView(View):
         try:
             # Retrieve the project by name
             project = Project.objects.get(name=project_name)
+
 
             # Gather all files related to this project
             files = File.objects.filter(project=project)

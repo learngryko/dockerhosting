@@ -27,7 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 DIND_URL=os.environ.get('DOCKER_HOST')
-DIND_SYNC_URL = os.environ.get('DIND_SYNC_URL')
+FLASK_SYNC_URL = os.environ.get('FLASK_SYNC_URL')
 # Application definition
 
 INSTALLED_APPS = [

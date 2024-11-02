@@ -18,20 +18,35 @@ services:
     build:
       context: ./dind
       dockerfile: Dockerfile
-    privileged: true  # Required to run Docker inside Docker
+    privileged: true
     environment:
-      DOCKER_TLS_CERTDIR: ""  # Disable TLS for simplicity in local dev
-      DJANGO_API_URL: http://django:8000/projects/
+      DOCKER_TLS_CERTDIR: ""  # Disable TLS for simplicity
     networks:
       - app-network
     expose:
-      - "2375"  # Docker daemon port
+      - "2375"
     ports:
-      - "2375:2375"  # Open port 2375 for communication
-      - "5000:5000" # Open port 5000 for flask
+      - "2375:2375"  # Open port for Docker communication
     volumes:
       - /var/lib/docker
-      - ./backend/project/repositories:/repositories
+      - ./repos:/app/repos/ 
+
+  # Flask App
+  flask:
+    build:
+      context: ./flask
+      dockerfile: Dockerfile  # Flask's Dockerfile
+    environment:
+      DIND_HOST: "dind"  # Hostname for the dind container
+      DIND_PORT: "2375"  # Port for Docker communication
+    networks:
+      - app-network
+    ports:
+      - "5000:5000"  # Expose Flask app on port 5000
+    volumes:
+      - ./repos:/app/repos/ 
+    depends_on:
+      - dind  # Ensure Flask waits for dind to be ready
 
   # Django Backend
   django:
@@ -42,22 +57,23 @@ services:
         DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL}
         DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
         DJANGO_SECRET: ${DJANGO_SECRET}
-      dockerfile: Dockerfile  # Django's Dockerfile
+      dockerfile: Dockerfile
     volumes:
-      - ./backend:/app  # Mount your backend code for live development
+      - ./backend:/app
     environment:
       DEBUG: 1
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}  # Correctly formatted
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       DOCKER_HOST: "tcp://dind:2375"
-      DIND_SYNC_URL: "tcp://dind:5000"
+      FLASK_SYNC_URL: "http://flask:5000"
     depends_on:
       - db
       - dind
+      - flask
     networks:
-      - app-network  # Add this to ensure Django is in the same network as dind
+      - app-network
     ports:
       - "8000:8000"
     command: >
@@ -66,17 +82,15 @@ services:
             python manage.py createsuperuser --no-input || true &&
             python manage.py runserver 0.0.0.0:8000"
 
-
-
   # React Frontend
   react:
     build:
       context: ./frontend
-      dockerfile: Dockerfile  # React's Dockerfile
+      dockerfile: Dockerfile
     volumes:
-      - ./frontend:/app  # Your React code
+      - ./frontend:/app
     networks:
-      - app-network  # Add this to ensure React is in the same network
+      - app-network
     ports:
       - "3000:3000"
 
@@ -85,4 +99,4 @@ volumes:
 
 networks:
   app-network:
-    driver: bridge  # Define the app-network
+    driver: bridge
