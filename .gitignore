@@ -1,4 +1,7 @@
-# Environment variables
+#Project specific
+backend/repos
+
+#Environment variables
 .env
 
 # Python
