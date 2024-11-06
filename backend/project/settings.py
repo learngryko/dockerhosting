@@ -26,8 +26,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
+CORS_ALLOWED_ORIGINS = [
+    os.environ.get('FRONTEND_HOST'),
+]
+
 DIND_URL=os.environ.get('DOCKER_HOST')
-FLASK_SYNC_URL = os.environ.get('FLASK_SYNC_URL')
 # Application definition
 
 INSTALLED_APPS = [
@@ -40,6 +43,7 @@ INSTALLED_APPS = [
     'project.app',
     'docker',
     'rest_framework',
+    'corsheaders',
     # 'GitPython',
 ]
 
@@ -51,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'project.urls'
