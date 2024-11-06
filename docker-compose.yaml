@@ -64,8 +64,8 @@ services:
             python manage.py createsuperuser --no-input || true &&
             python manage.py runserver 0.0.0.0:8000"
 
-  # React Frontend
-  react:
+  # next Frontend
+  next:
     build:
       context: ./frontend
       dockerfile: Dockerfile

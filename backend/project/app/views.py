@@ -11,36 +11,39 @@ from django.utils.decorators import method_decorator
 from .models import Project, File, Container, Environment
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.decorators import api_view
+
 
 # Set up a logger
 logger = logging.getLogger(__name__)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class CloneRepositoryView(View):
+class CloneRepositoryView(APIView):
     def post(self, request):
         try:
-            data = json.loads(request.body)
+            data = request.data  # Use request.data in DRF
             repository_url = data.get('repository_url')
             project_name = data.get('project_name')
             project_description = data.get('description', '')
-            build_file_path = data.get('build_file_path','NOT SET')
+            build_file_path = data.get('build_file_path', 'NOT SET')
 
-            # Ensure project_name and repository_url are provided
             if not project_name or not repository_url:
-                return JsonResponse({'status': 'error', 'message': 'Project name and repository URL are required.'})
+                return Response({'status': 'error', 'message': 'Project name and repository URL are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
             repo_dir = os.path.join(settings.BASE_DIR, 'repositories', project_name)
             if os.path.exists(repo_dir):
-                shutil.rmtree(repo_dir)  # Delete the directory if it exists
+                shutil.rmtree(repo_dir)
             os.makedirs(repo_dir)
 
             git.Repo.clone_from(repository_url, repo_dir)
 
             project = Project.objects.create(
                 name=project_name,
-                description=project_description.replace('\0', ''),  # Remove NUL bytes from description
+                description=project_description.replace('\0', ''),
                 repository_url=repository_url,
-                build_file_path = build_file_path
+                build_file_path=build_file_path
             )
 
             for root, dirs, files in os.walk(repo_dir):
@@ -49,9 +52,8 @@ class CloneRepositoryView(View):
                     relative_path = os.path.relpath(file_path, repo_dir)
                     _, file_extension = os.path.splitext(file)
 
-                    # Read file content, filter out NUL bytes
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read().replace('\0', '')  # Remove NUL bytes
+                        content = f.read().replace('\0', '')
 
                     File.objects.create(
                         project=project,
@@ -60,116 +62,91 @@ class CloneRepositoryView(View):
                         extension=file_extension
                     )
 
-            shutil.rmtree(repo_dir)  # Clean up after storing files
-            return JsonResponse({'status': 'success', 'message': 'Project and files created successfully.'})
+            shutil.rmtree(repo_dir)
+            return Response({'status': 'success', 'message': 'Project and files created successfully.'}, status=status.HTTP_201_CREATED)
 
         except git.exc.GitError as e:
             logger.error(f"Git error: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'Git error: {str(e)}'})
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON format.'})
+            return Response({'status': 'error', 'message': f'Git error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
-            # Cleanup: Delete the repository directory after storing files
             if os.path.exists(repo_dir):
                 shutil.rmtree(repo_dir)
-                logger.info(f"Repository directory {repo_dir} has been deleted after processing.")
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'})
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class ListFilesView(View):
+class ListFilesView(APIView):
     def get(self, request, project_name):
         try:
-            # Get the project by name
             project = Project.objects.get(name=project_name)
-            
-            # Fetch all files related to this project
             files = File.objects.filter(project=project)
 
-            # Build a response structure with file paths
             files_list = [{'file_path': file.file_path, 'extension': file.extension} for file in files]
-            return JsonResponse({'status': 'success', 'files': files_list}, status=200)
+            return Response({'status': 'success', 'files': files_list}, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+            return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class FileContentView(View):
+class ListFilesView(APIView):
+    def get(self, request, project_name):
+        try:
+            project = Project.objects.get(name=project_name)
+            files = File.objects.filter(project=project)
+
+            files_list = [{'file_path': file.file_path, 'extension': file.extension} for file in files]
+            return Response({'status': 'success', 'files': files_list}, status=status.HTTP_200_OK)
+        except Project.DoesNotExist:
+            return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class FileContentView(APIView):
     def get(self, request, project_name, file_path):
         try:
-            # Get the project by name
             project = Project.objects.get(name=project_name)
-            
-            # Fetch the specific file by its path
             file = File.objects.get(project=project, file_path=file_path)
-
-            # Return the file content
-            return JsonResponse({'status': 'success', 'content': file.content}, status=200)
+            return Response({'status': 'success', 'content': file.content}, status=status.HTTP_200_OK)
         except (Project.DoesNotExist, File.DoesNotExist):
-            return JsonResponse({'status': 'error', 'message': 'Project or file not found'}, status=404)
-    
+            return Response({'status': 'error', 'message': 'Project or file not found'}, status=status.HTTP_404_NOT_FOUND)
+
     def post(self, request, project_name, file_path):
         try:
-            # Get the project by name
             project = Project.objects.get(name=project_name)
-            
-            # Fetch the specific file by its path
             file = File.objects.get(project=project, file_path=file_path)
-
-            # Get the new content from the request
-            data = json.loads(request.body)
+            data = request.data
             new_content = data.get('content', '')
-
-            # Update only the file content, without changing other fields
             file.content = new_content
             file.save(update_fields=['content'])
-
-            return JsonResponse({'status': 'success', 'message': 'File updated successfully.'}, status=200)
+            return Response({'status': 'success', 'message': 'File updated successfully.'}, status=status.HTTP_200_OK)
         except (Project.DoesNotExist, File.DoesNotExist):
-            return JsonResponse({'status': 'error', 'message': 'Project or file not found'}, status=404)
+            return Response({'status': 'error', 'message': 'Project or file not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
-        
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class CSRFTokenView(View):
-    def get(self, request):
-        csrf_token = get_token(request)  # Get the CSRF token
-        return JsonResponse({'csrfToken': csrf_token})
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_csrf_token(request):
+    csrf_token = get_token(request)
+    return Response({'csrfToken': csrf_token})
     
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class CreateContainerView(View):
+class CreateContainerView(APIView):
     def post(self, request):
         try:
-            data = json.loads(request.body)
+            data = request.data
             project_name = data.get('project_name')
-            build_file_path = data.get('build_file_path', 'Dockerfile')  # Default to Dockerfile
+            build_file_path = data.get('build_file_path', 'Dockerfile')
             port = data.get('port', 8080)
 
-            logger.info(f"Creating containers for project: {project_name}")
-
-            # Fetch the project from the database
             project = Project.objects.get(name=project_name)
-
-            # Set up the Docker client using the Docker-in-Docker host
             client = docker.DockerClient(base_url=settings.DIND_URL)
 
-            # Define the path to the build context inside the dind container
-            build_context_path = f"/app/repos/{project_name}"  # Path inside dind
-            dockerfile_path = f"{build_context_path}/{build_file_path}"  # Path to Dockerfile
+            build_context_path = f"/app/repos/{project_name}"
+            dockerfile_path = f"{build_context_path}/{build_file_path}"
 
-            logger.info(f"Building Docker image with context: {build_context_path} and dockerfile: {dockerfile_path}")
-
-            # Build the Docker image
             image, build_logs = client.images.build(
-                path=build_context_path,  # This is the directory containing the Dockerfile
-                dockerfile=build_file_path,  # Just the filename if the path is correct
+                path=build_context_path,
+                dockerfile=build_file_path,
                 tag=f"{project_name}_image"
             )
 
-            # Log the build output
             for log in build_logs:
                 logger.info(log)
 
-            # Run the container
             container = client.containers.run(
                 image=f"{project_name}_image",
                 ports={f"{port}/tcp": port},
@@ -177,66 +154,55 @@ class CreateContainerView(View):
                 name=f"{project_name}_container"
             )
 
-            return JsonResponse({
+            return Response({
                 'status': 'success',
                 'container_id': container.id,
                 'message': 'Container created successfully.'
-            }, status=201)
+            }, status=status.HTTP_201_CREATED)
 
         except Project.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+            return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
         except docker.errors.DockerException as e:
             logger.error(f"Docker error: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class ListContainersView(View):
+class ListContainersView(APIView):
     def get(self, request, project_name=None):
         try:
-            # If project_name is provided, filter by project
             if project_name:
                 project = Project.objects.get(name=project_name)
                 containers = Container.objects.filter(project=project)
             else:
-                # If no project_name is provided, list all containers
                 containers = Container.objects.all()
 
-            # Build the response data
-            container_list = []
-            for container in containers:
-                container_list.append({
+            container_list = [
+                {
                     'container_id': container.container_id,
                     'project': container.project.name,
                     'status': container.status,
                     'port': container.port
-                })
+                } for container in containers
+            ]
 
-            return JsonResponse({'status': 'success', 'containers': container_list}, status=200)
-
+            return Response({'status': 'success', 'containers': container_list}, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+            return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class StartContainerView(View):
+class StartContainerView(APIView):
     def post(self, request, container_id):
+        if not container_id:
+            return Response({'status': 'error', 'message': 'Container ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            # Ensure container_id is provided
-            if not container_id:
-                return JsonResponse({'status': 'error', 'message': 'Container ID is required.'}, status=400)
-
             # Set up Docker client
             client = docker.DockerClient(base_url=settings.DIND_URL)
-
-            # Get the container
             container = client.containers.get(container_id)
-
-            # Start the container
             container.start()
 
             # Update the container status in the database
@@ -244,32 +210,27 @@ class StartContainerView(View):
             container_obj.status = 'running'
             container_obj.save()
 
-            return JsonResponse({'status': 'success', 'message': f'Container {container_id} started successfully.'}, status=200)
-
+            return Response({'status': 'success', 'message': f'Container {container_id} started successfully.'}, status=status.HTTP_200_OK)
+        
         except Container.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Container not found.'}, status=404)
+            return Response({'status': 'error', 'message': 'Container not found.'}, status=status.HTTP_404_NOT_FOUND)
         except docker.errors.DockerException as e:
             logger.error(f"Docker error: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class StopContainerView(View):
+
+class StopContainerView(APIView):
     def post(self, request, container_id):
-        try:
-            # Ensure container_id is provided
-            if not container_id:
-                return JsonResponse({'status': 'error', 'message': 'Container ID is required.'}, status=400)
+        if not container_id:
+            return Response({'status': 'error', 'message': 'Container ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
             # Set up Docker client
             client = docker.DockerClient(base_url=settings.DIND_URL)
-
-            # Get the container
             container = client.containers.get(container_id)
-
-            # Stop the container
             container.stop()
 
             # Update the container status in the database
@@ -277,70 +238,59 @@ class StopContainerView(View):
             container_obj.status = 'stopped'
             container_obj.save()
 
-            return JsonResponse({'status': 'success', 'message': f'Container {container_id} stopped successfully.'}, status=200)
-
+            return Response({'status': 'success', 'message': f'Container {container_id} stopped successfully.'}, status=status.HTTP_200_OK)
+        
         except Container.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Container not found.'}, status=404)
+            return Response({'status': 'error', 'message': 'Container not found.'}, status=status.HTTP_404_NOT_FOUND)
         except docker.errors.DockerException as e:
             logger.error(f"Docker error: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'Docker error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class SetToHostFlagView(View):
+
+class SetToHostFlagView(APIView):
     def post(self, request, project_name, flag_value):
         try:
             # Retrieve the project by name
             project = Project.objects.get(name=project_name)
-            
+
             # Convert the flag_value to a boolean
             if flag_value.lower() == 'true':
                 flag = True
             elif flag_value.lower() == 'false':
                 flag = False
             else:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Invalid flag value. Use "true" or "false".'
-                }, status=400)
-            
+                return Response({'status': 'error', 'message': 'Invalid flag value. Use "true" or "false".'}, status=status.HTTP_400_BAD_REQUEST)
+
             # Update the `to_host` flag for all files related to this project
             File.objects.filter(project=project).update(to_host=flag)
-            
+
             # Define the project directory path
             project_dir = os.path.join('/app/repos', project_name)
-            
+
             if flag:
-                # If flag is True, create the directory and download all files
                 if not os.path.exists(project_dir):
                     os.makedirs(project_dir)
-                
-                # Iterate through all related files and write their content to the file system
+
                 files = File.objects.filter(project=project)
                 for file in files:
                     file_path = os.path.join(project_dir, file.file_path)
-                    # Ensure the directory for the file path exists
                     os.makedirs(os.path.dirname(file_path), exist_ok=True)
                     with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(file.content)
-                
+
                 logger.info(f"All files for project {project_name} have been downloaded to {project_dir}.")
             else:
-                # If flag is False, delete the directory and all its contents
                 if os.path.exists(project_dir):
                     shutil.rmtree(project_dir)
                     logger.info(f"Project directory {project_dir} has been deleted.")
 
-            return JsonResponse({
-                'status': 'success',
-                'message': f'to_host flag set to {flag} for all files in project {project_name}.'
-            }, status=200)
+            return Response({'status': 'success', 'message': f'to_host flag set to {flag} for all files in project {project_name}.'}, status=status.HTTP_200_OK)
         
         except Project.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+            return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
-
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
