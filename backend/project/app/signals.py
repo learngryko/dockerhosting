@@ -1,20 +1,30 @@
+import os
+import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import File
-from project.settings import FLASK_SYNC_URL
-import requests
+from pathlib import Path
 
 
+# Signal handler for copying files to the host
 @receiver(post_save, sender=File)
-def notify_Flask_on_file_change(sender, instance, **kwargs):
-    """
-    Signal to notify Flask when a file changes. Sends a request to the Flask container
-    to sync the latest files for the related project.
-    """
-    project_id = instance.project.name
-    try:
-        # Sending a POST request to notify Flask
-        requests.post(f"{FLASK_SYNC_URL}/sync-files", json={"project_id": project_id})
-        print(f"Notified Flask to sync files for project {project_id}")
-    except requests.RequestException as e:
-        print(f"Failed to notify Flask: {e}")
+def copy_file_to_host(sender, instance, **kwargs):
+    if instance.to_host:  # Check if the flag is set
+        # Construct the directory path
+        project_name = instance.project.name
+        repo_path = f'/app/repos/{project_name}'
+        os.makedirs(repo_path, exist_ok=True)  # Ensure the directory exists
+
+
+        # Construct the full file path
+        file_path = os.path.join(repo_path, instance.file_path)
+        # Ensure the directory for the file exists
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        logging.info(f"Coping file {os.path.basename(instance.file_path)} to {file_path}")
+        # Write the file content to the file path
+        with open(file_path, 'w') as file:
+            file.write(instance.content)
+
+        # Optionally, you could set `to_host` to `False` after copying to avoid repeated copies
+        instance.to_host = False
+        instance.save()

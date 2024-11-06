@@ -27,6 +27,7 @@ class File(models.Model):
     file_path = models.CharField(max_length=255)  # Path of the file in the repo
     content = models.TextField()  # Code content of the file
     extension = models.TextField()
+    to_host = models.BooleanField(default=False)  # New flag to trigger copying to host
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

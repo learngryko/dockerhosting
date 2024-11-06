@@ -24,9 +24,10 @@ urlpatterns = [
     path('clone-repo/', CloneRepositoryView.as_view(), name='clone_repository'),
     path('projects/<str:project_name>/files/', ListFilesView.as_view(), name='list_files'),
     path('projects/<str:project_name>/files/<str:file_path>/', FileContentView.as_view(), name='file_content'),
+    path('project/<str:project_name>/set-to-host/<str:flag_value>/', SetToHostFlagView.as_view(), name='set_to_host_flag'),
     path('create-container/', CreateContainerView.as_view(), name='create_container'),  # Create container
     path('containers/<str:project_name>/', ListContainersView.as_view(), name='list_containers'),  # List containers for a project
     path('containers/<str:container_id>/start/', StartContainerView.as_view(), name='start_container'),  # Start a container
     path('containers/<str:container_id>/stop/', StopContainerView.as_view(), name='stop_container'),  # Stop a container
-    path('projects/<str:project_name>/sync/', ProjectFilesSyncView.as_view(), name='sync_files'),
+
 ]

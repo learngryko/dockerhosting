@@ -31,23 +31,6 @@ services:
       - /var/lib/docker
       - ./repos:/app/repos/ 
 
-  # Flask App
-  flask:
-    build:
-      context: ./flask
-      dockerfile: Dockerfile  # Flask's Dockerfile
-    environment:
-      DIND_HOST: "dind"  # Hostname for the dind container
-      DIND_PORT: "2375"  # Port for Docker communication
-    networks:
-      - app-network
-    ports:
-      - "5000:5000"  # Expose Flask app on port 5000
-    volumes:
-      - ./repos:/app/repos/ 
-    depends_on:
-      - dind  # Ensure Flask waits for dind to be ready
-
   # Django Backend
   django:
     build:
@@ -71,7 +54,6 @@ services:
     depends_on:
       - db
       - dind
-      - flask
     networks:
       - app-network
     ports:

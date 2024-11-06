@@ -119,9 +119,9 @@ class FileContentView(View):
             data = json.loads(request.body)
             new_content = data.get('content', '')
 
-            # Update the file content
+            # Update only the file content, without changing other fields
             file.content = new_content
-            file.save()
+            file.save(update_fields=['content'])
 
             return JsonResponse({'status': 'success', 'message': 'File updated successfully.'}, status=200)
         except (Project.DoesNotExist, File.DoesNotExist):
@@ -192,8 +192,6 @@ class CreateContainerView(View):
             logger.error(f"An error occurred: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
 
-
-
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class ListContainersView(View):
     def get(self, request, project_name=None):
@@ -223,7 +221,6 @@ class ListContainersView(View):
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
-
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class StartContainerView(View):
@@ -258,7 +255,6 @@ class StartContainerView(View):
             logger.error(f"An error occurred: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
 
-
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class StopContainerView(View):
     def post(self, request, container_id):
@@ -292,32 +288,59 @@ class StopContainerView(View):
             logger.error(f"An error occurred: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
 
-
-class ProjectFilesSyncView(View):
-    def get(self, request, project_name):
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class SetToHostFlagView(View):
+    def post(self, request, project_name, flag_value):
         try:
             # Retrieve the project by name
             project = Project.objects.get(name=project_name)
+            
+            # Convert the flag_value to a boolean
+            if flag_value.lower() == 'true':
+                flag = True
+            elif flag_value.lower() == 'false':
+                flag = False
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Invalid flag value. Use "true" or "false".'
+                }, status=400)
+            
+            # Update the `to_host` flag for all files related to this project
+            File.objects.filter(project=project).update(to_host=flag)
+            
+            # Define the project directory path
+            project_dir = os.path.join('/app/repos', project_name)
+            
+            if flag:
+                # If flag is True, create the directory and download all files
+                if not os.path.exists(project_dir):
+                    os.makedirs(project_dir)
+                
+                # Iterate through all related files and write their content to the file system
+                files = File.objects.filter(project=project)
+                for file in files:
+                    file_path = os.path.join(project_dir, file.file_path)
+                    # Ensure the directory for the file path exists
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(file.content)
+                
+                logger.info(f"All files for project {project_name} have been downloaded to {project_dir}.")
+            else:
+                # If flag is False, delete the directory and all its contents
+                if os.path.exists(project_dir):
+                    shutil.rmtree(project_dir)
+                    logger.info(f"Project directory {project_dir} has been deleted.")
 
-
-            # Gather all files related to this project
-            files = File.objects.filter(project=project)
-
-            # Build a list of file details including paths and content
-            files_data = [
-                {
-                    'file_path': file.file_path,
-                    'content': file.content,
-                    'extension': file.extension,
-                    'updated_at': file.updated_at.isoformat()
-                }
-                for file in files
-            ]
-
-            return JsonResponse({'status': 'success', 'files': files_data}, status=200)
-
+            return JsonResponse({
+                'status': 'success',
+                'message': f'to_host flag set to {flag} for all files in project {project_name}.'
+            }, status=200)
+        
         except Project.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=500)
+
