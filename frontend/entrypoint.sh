@@ -21,8 +21,16 @@ if [ ! -f "package.json" ]; then
   exit 1
 fi
 
-# Install dependencies (if they exist)
+# Install dependencies
 npm install
+
+# Install axios if not already installed
+if ! npm list axios > /dev/null 2>&1; then
+  echo "Installing axios..."
+  npm install axios
+else
+  echo "Axios is already installed. Skipping."
+fi
 
 # Start the Next.js app
 npm run dev
