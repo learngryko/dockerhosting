@@ -32,5 +32,13 @@ else
   echo "Axios is already installed. Skipping."
 fi
 
+# Install axios if not already installed
+if ! npm list dotenv > /dev/null 2>&1; then
+  echo "Installing dotenv..."
+  npm install dotenv
+else
+  echo "dotenv is already installed. Skipping."
+fi
+
 # Start the Next.js app
 npm run dev
