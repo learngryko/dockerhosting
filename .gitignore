@@ -1,5 +1,5 @@
 #Project specific
-backend/repos
+*/repos
 
 #Environment variables
 .env
