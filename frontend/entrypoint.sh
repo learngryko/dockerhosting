@@ -32,13 +32,17 @@ else
   echo "Axios is already installed. Skipping."
 fi
 
-# Install axios if not already installed
+# Install dotenv if not already installed
 if ! npm list dotenv > /dev/null 2>&1; then
   echo "Installing dotenv..."
   npm install dotenv
 else
   echo "dotenv is already installed. Skipping."
 fi
+
+# Install Tailwind CSS and required dependencies
+echo "Installing Tailwind CSS..."
+npm install -D tailwindcss postcss autoprefixer
 
 # Start the Next.js app
 npm run dev
