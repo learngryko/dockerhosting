@@ -1,5 +1,5 @@
 // src/app/login/page.tsx
-"use client"; // Ensures this component runs on the client side
+"use client";
 
 import LoginForm from '../../components/LoginForm';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,7 @@ const LoginPage = () => {
   const router = useRouter();
 
   const handleLoginSuccess = () => {
-    router.push('/');
+    router.push('/'); // Redirect to the homepage or dashboard
   };
 
   return (

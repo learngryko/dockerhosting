@@ -85,16 +85,6 @@ class ListFilesView(APIView):
         except Project.DoesNotExist:
             return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
 
-class ListFilesView(APIView):
-    def get(self, request, project_name):
-        try:
-            project = Project.objects.get(name=project_name)
-            files = File.objects.filter(project=project)
-
-            files_list = [{'file_path': file.file_path, 'extension': file.extension} for file in files]
-            return Response({'status': 'success', 'files': files_list}, status=status.HTTP_200_OK)
-        except Project.DoesNotExist:
-            return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class FileContentView(APIView):
     def get(self, request, project_name, file_path):
