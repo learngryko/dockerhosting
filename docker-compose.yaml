@@ -63,7 +63,7 @@
               python manage.py runserver 0.0.0.0:8000"
 
     # next Frontend
-    react:
+    next:
       build:
         context: ./frontend
         dockerfile: Dockerfile
@@ -90,7 +90,7 @@
       networks:
         - app-network
       depends_on:
-        - react  # Make sure React app is up before NGINX
+        - next  # Make sure next app is up before NGINX
 
 
   volumes:

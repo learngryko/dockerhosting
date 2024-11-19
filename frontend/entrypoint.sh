@@ -1,24 +1,28 @@
 #!/bin/sh
 
-APP_NAME=${1:-my-react-app}
-CREATE_REACT_OPTIONS=${2:-""}
+# Set the default app name and options
+APP_NAME=${1:-my-next-app}
+CREATE_NEXT_OPTIONS=${2:-""}
 
-# Check if the React app exists
+# Check if the Next.js app exists in the host directory
 if [ ! -d "./$APP_NAME" ]; then
-  echo "Creating a new React app '$APP_NAME'..."
-  npx create-react-app "$APP_NAME" $CREATE_REACT_OPTIONS
+  echo "Creating a new Next.js app named '$APP_NAME' with options '$CREATE_NEXT_OPTIONS'..."
+  npx create-next-app@latest "$APP_NAME" $CREATE_NEXT_OPTIONS
 else
-  echo "React app '$APP_NAME' already exists. Skipping creation."
+  echo "Next.js app '$APP_NAME' already exists. Skipping creation."
 fi
 
-# Navigate to app directory
+# Change to the app directory
 cd "$APP_NAME" || { echo "Failed to enter directory '$APP_NAME'"; exit 1; }
 
 # Check if package.json exists
 if [ ! -f "package.json" ]; then
-  echo "Error: package.json not found in $APP_NAME directory."
+  echo "Error: package.json not found in $APP_NAME directory. Ensure the Next.js app was created successfully."
   exit 1
 fi
+
+# Install dependencies
+npm install
 
 # Install axios if not already installed
 if ! npm list axios > /dev/null 2>&1; then
@@ -36,15 +40,9 @@ else
   echo "dotenv is already installed. Skipping."
 fi
 
-# Install dotenv if not already installed
-if ! npm list react-router-dom > /dev/null 2>&1; then
-  echo "Installing dotenv..."
-  npm install react-router-dom
-else
-  echo "react-router-dom is already installed. Skipping."
-fi
-# Install dependencies
-npm install
+# Install Tailwind CSS and required dependencies
+echo "Installing Tailwind CSS..."
+npm install -D tailwindcss postcss autoprefixer
 
-# Start the React app
-npm run start
+# Start the Next.js app
+npm run dev
