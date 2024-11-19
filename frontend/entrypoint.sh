@@ -20,6 +20,29 @@ if [ ! -f "package.json" ]; then
   exit 1
 fi
 
+# Install axios if not already installed
+if ! npm list axios > /dev/null 2>&1; then
+  echo "Installing axios..."
+  npm install axios
+else
+  echo "Axios is already installed. Skipping."
+fi
+
+# Install dotenv if not already installed
+if ! npm list dotenv > /dev/null 2>&1; then
+  echo "Installing dotenv..."
+  npm install dotenv
+else
+  echo "dotenv is already installed. Skipping."
+fi
+
+# Install dotenv if not already installed
+if ! npm list react-router-dom > /dev/null 2>&1; then
+  echo "Installing dotenv..."
+  npm install react-router-dom
+else
+  echo "react-router-dom is already installed. Skipping."
+fi
 # Install dependencies
 npm install
 

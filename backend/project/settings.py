@@ -26,15 +26,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://next:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://*",
-    "https://*",
-]
+# Allow all origins for development (use specific origins for production)
+CORS_ALLOW_ALL_ORIGINS = True  # This is not recommended for production!
+
+# Optionally, allow credentials (if you're using cookies or authorization headers)
 CORS_ALLOW_CREDENTIALS = True
 
 DIND_URL=os.environ.get('DOCKER_HOST')
