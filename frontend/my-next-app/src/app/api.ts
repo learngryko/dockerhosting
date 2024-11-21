@@ -1,6 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import * as dotenv from 'dotenv';
-dotenv.config();
+import config from '../../config'
 
 interface LoginResponse {
   access: string;
@@ -12,7 +11,7 @@ interface LoginPayload {
   password: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://django:8000/api/';
+const API_URL = config.backendurl;
 const LOGIN_ENDPOINT = `${API_URL}token/`;
 const REFRESH_ENDPOINT = `${API_URL}token/refresh/`;
 

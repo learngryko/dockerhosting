@@ -20,23 +20,6 @@ from rest_framework.decorators import api_view
 # Set up a logger
 logger = logging.getLogger(__name__)
 
-def log_request_origin(request):
-    origin = request.headers.get('Origin')
-    referer = request.headers.get('Referer')
-    logger.info(f"Request received from Origin: {origin}, Referer: {referer}")
-
-class PingView(APIView):
-    authentication_classes = []  # Disables authentication for this view
-    permission_classes = []      # Disables permissions for this view
-
-    def get(self, request):
-        # Log the origin and referer
-        log_request_origin(request)
-        
-        # Respond with a simple JSON message
-        return JsonResponse({'status': 'success', 'message': 'Ping successful'}, status=200)
-
-
 class CloneRepositoryView(APIView):
     def post(self, request):
         try:
@@ -125,12 +108,6 @@ class FileContentView(APIView):
             return Response({'status': 'error', 'message': 'Project or file not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@api_view(['GET'])
-def get_csrf_token(request):
-    log_request_origin(request)
-    csrf_token = get_token(request)
-    return Response({'csrfToken': csrf_token})
     
 class CreateContainerView(APIView):
     def post(self, request):

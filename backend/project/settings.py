@@ -24,13 +24,26 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "localhost",           # For external access on the host
+    "127.0.0.1",           # Local testing
+    "django",              # Internal Docker service name for Django
+    "nginx",               # Internal Docker service name for NGINX
+]
 
-# Allow all origins for development (use specific origins for production)
-CORS_ALLOW_ALL_ORIGINS = True  # This is not recommended for production!
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",        # Frontend served from localhost (development)
+    "http://127.0.0.1:3000",        # Local testing
+    "http://nginx",                 # Internal Docker service name for NGINX
+]
+
 
 # Optionally, allow credentials (if you're using cookies or authorization headers)
 CORS_ALLOW_CREDENTIALS = True
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 DIND_URL=os.environ.get('DOCKER_HOST')
 # Application definition
