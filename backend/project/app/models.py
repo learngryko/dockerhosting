@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Project(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -7,9 +8,11 @@ class Project(models.Model):
     build_file_path = models.CharField(max_length=255, default='NOT SET')  # Path to Dockerfile / docker compose
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
 
     def __str__(self):
         return self.name
+
 
 
 class Environment(models.Model):

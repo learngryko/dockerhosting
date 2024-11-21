@@ -36,16 +36,7 @@ const Header: FC = () => {
               Home
             </Link>
           </li>
-          <li>
-            <Link href="/about" className="text-white hover:text-blue-300 transition-colors">
-              About
-            </Link>
-          </li>
-          <li>
-            <Link href="/contact" className="text-white hover:text-blue-300 transition-colors">
-              Contact
-            </Link>
-          </li>
+          <li
           <li className="ml-auto">
             {isLoggedIn ? (
               <button
