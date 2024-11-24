@@ -2,20 +2,15 @@ import os
 import git
 import shutil  # for deleting the repo folder
 import logging
-import json
 import docker
 from django.conf import settings
-from django.http import JsonResponse
-from django.views import View
-from django.utils.decorators import method_decorator
-from .models import Project, File, Container, Environment
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.middleware.csrf import get_token
+from .models import Project, File, Container
+from .serializers import ProjectSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import api_view
-
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 # Set up a logger
 logger = logging.getLogger(__name__)
@@ -43,7 +38,8 @@ class CloneRepositoryView(APIView):
                 name=project_name,
                 description=project_description.replace('\0', ''),
                 repository_url=repository_url,
-                build_file_path=build_file_path
+                build_file_path=build_file_path,
+                owner = request.user
             )
 
             for root, dirs, files in os.walk(repo_dir):
@@ -72,6 +68,25 @@ class CloneRepositoryView(APIView):
             logger.error(f"An error occurred: {str(e)}")
             if os.path.exists(repo_dir):
                 shutil.rmtree(repo_dir)
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserProjectsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Get the current authenticated user
+            user = request.user
+
+            # Fetch all projects where the owner is the current user
+            projects = Project.objects.filter(owner=user)
+
+            # Serialize the project data
+            serializer = ProjectSerializer(projects, many=True)
+
+            return Response({'status': 'success', 'projects': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ListFilesView(APIView):

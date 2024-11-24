@@ -16,7 +16,7 @@ const ProjectsPage = () => {
     <>
       <Header />
       <main>
-        projects:
+        Projects:
       </main>
     </>
   );

@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     path('api/clone-repo/', CloneRepositoryView.as_view(), name='clone_repository'),
+    path('api/user/projects/', UserProjectsView.as_view(), name='user_projects'),
     path('api/projects/<str:project_name>/files/', ListFilesView.as_view(), name='list_files'),
     path('api/projects/<str:project_name>/files/<str:file_path>/', FileContentView.as_view(), name='file_content'),
     path('api/project/<str:project_name>/set-to-host/<str:flag_value>/', SetToHostFlagView.as_view(), name='set_to_host_flag'),
