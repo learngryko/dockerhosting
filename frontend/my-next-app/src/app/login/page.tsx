@@ -9,7 +9,7 @@ const LoginPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/'; // Default to home if no redirect is provided
-  const isLoggedIn = useAuth();
+  const isLoggedIn = useAuth()['isLoggedIn'];
 
   const handleLoginSuccess = () => {
     router.push(redirectTo); // Redirect to the intended page

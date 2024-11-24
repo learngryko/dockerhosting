@@ -44,5 +44,13 @@ fi
 echo "Installing Tailwind CSS..."
 npm install -D tailwindcss postcss autoprefixer
 
+# Install jwt-decode if not already installed
+if ! npm list jwt-decode > /dev/null 2>&1; then
+  echo "Installing jwt-decode..."
+  npm install jwt-decode
+else
+  echo "jwt-decode is already installed. Skipping."
+fi
+
 # Start the Next.js app
 npm run dev

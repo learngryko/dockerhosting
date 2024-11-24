@@ -16,7 +16,7 @@ const LogoutPage = () => {
 
     setTimeout(() => {
       router.push('/'); // Redirect to home page after logout
-    }, 2000); // Redirect after 2 seconds
+    }, 1000); // Redirect after 1 seconds
   }, [router]);
 
   return (
