@@ -1,32 +1,47 @@
 // src/components/LoginForm.tsx
 import { useState } from 'react';
 import { login } from '../app/api'; // Import the login function
+import { useRouter } from 'next/navigation';
 
 interface LoginFormProps {
   onSuccess: () => void;
+  redirectTo?: string; // Optional redirect target
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectTo }) => {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(username, password);
+    setError(''); // Clear any previous errors
 
-    if (success) {
-      console.log('Login successful!');
-      onSuccess(); // Call onSuccess when login is successful
-    } else {
-      setError('Login failed, please try again.');
+    try {
+      const success = await login(username, password); // Assume login is an async function that returns a boolean
+
+      if (success) {
+        console.log('Login successful!');
+        onSuccess();
+        if (redirectTo) {
+          router.push(redirectTo); // Redirect to the intended page
+        }
+      } else {
+        setError('Login failed, please try again.');
+      }
+    } catch (err) {
+      console.error('An error occurred during login:', err);
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
   return (
     <form onSubmit={handleLogin} className="space-y-4">
       <div>
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+          Username
+        </label>
         <input
           type="text"
           id="username"
@@ -37,7 +52,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         />
       </div>
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          Password
+        </label>
         <input
           type="password"
           id="password"

@@ -33,3 +33,9 @@ RUN sh -c 'if [ ! -f manage.py ]; then django-admin startproject project .; fi'
 
 # Check if app exists; if not, create Django app
 RUN sh -c 'if [ ! -d project/app ]; then cd project && django-admin startapp app; fi'
+
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

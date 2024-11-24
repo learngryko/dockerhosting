@@ -36,6 +36,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",        # Frontend served from localhost (development)
     "http://127.0.0.1:3000",        # Local testing
     "http://nginx",                 # Internal Docker service name for NGINX
+    "https://nginx",   
 ]
 
 
