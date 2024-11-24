@@ -1,31 +1,11 @@
 "use client";
 
 import Link from 'next/link';
-import { FC, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { FC } from 'react';
+import useAuth from '../hooks/useAuth';
 
 const Header: FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    const checkLoginStatus = () => {
-      const accessToken = localStorage.getItem('access_token');
-      setIsLoggedIn(!!accessToken);
-    };
-
-    checkLoginStatus();
-    window.addEventListener("storage", checkLoginStatus); // Listen for localStorage changes
-
-    return () => window.removeEventListener("storage", checkLoginStatus); // Cleanup listener
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setIsLoggedIn(false);
-    router.push('/login'); // Redirect to login page after logout
-  };
+  const isLoggedIn = useAuth();
 
   return (
     <header className="bg-blue-500 py-4 shadow-md">
@@ -43,12 +23,9 @@ const Header: FC = () => {
           </li>
           <li className="ml-auto">
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="text-white hover:text-blue-300 transition-colors"
-              >
+              <Link href="/logout" className="text-white hover:text-blue-300 transition-colors">
                 Logout
-              </button>
+              </Link>
             ) : (
               <Link href="/login" className="text-white hover:text-blue-300 transition-colors">
                 Login
