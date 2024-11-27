@@ -36,7 +36,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",        # Frontend served from localhost (development)
     "http://127.0.0.1:3000",        # Local testing
     "http://nginx",                 # Internal Docker service name for NGINX
-    "https://nginx",   
+    "https://nginx",
+    "https://next",
+    "http://next"
 ]
 
 
@@ -60,6 +62,7 @@ INSTALLED_APPS = [
     'docker',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     # 'GitPython',
 ]

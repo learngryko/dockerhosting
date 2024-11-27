@@ -9,6 +9,8 @@ urlpatterns = [
     
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/logout/', LogoutView.as_view(), name='logout'),
+
     
     path('api/clone-repo/', CloneRepositoryView.as_view(), name='clone_repository'),
     path('api/user/projects/', UserProjectsView.as_view(), name='user_projects'),

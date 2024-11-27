@@ -5,7 +5,14 @@ import { FC } from 'react';
 import useAuth from '../hooks/useAuth';
 
 const Header: FC = () => {
-  const isLoggedIn = useAuth();
+  const { isLoggedIn, isTokenExpiring, timeLeft } = useAuth();
+
+  // Format time left into a readable format (e.g., minutes and seconds)
+  const formatTimeLeft = (time: number) => {
+    const minutes = Math.floor(time / 1000 / 60);
+    const seconds = Math.floor((time / 1000) % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
 
   return (
     <header className="bg-blue-500 py-4 shadow-md">
@@ -34,6 +41,13 @@ const Header: FC = () => {
           </li>
         </ul>
       </nav>
+
+      {/* Show timer if the token is expiring */}
+      {isTokenExpiring && (
+        <div className="text-yellow-300 text-center mt-2">
+          <p>Your session will expire in {formatTimeLeft(timeLeft)}. Please save your work.</p>
+        </div>
+      )}
     </header>
   );
 };

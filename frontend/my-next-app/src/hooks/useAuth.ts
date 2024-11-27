@@ -1,67 +1,105 @@
-import { useState, useEffect } from 'react';
-import { refreshToken } from '@/app/api'
-import { jwtDecode } from 'jwt-decode';
+"use client";
 
+import { useState, useEffect } from 'react';
+import { refreshToken } from '@/app/api';
+import {jwtDecode} from 'jwt-decode';
+import axios from 'axios';
+import config from '@/../config'
+
+const API_URL = config.backendurl;
+const LOGOUT_ENDPOINT = `${API_URL}token/logout/`;
+
+
+interface JwtPayload {
+  exp: number;
+  [key: string]: any;
+}
 
 const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isTokenExpiring, setIsTokenExpiring] = useState<boolean>(false);
-  const [timeLeft, setTimeLeft] = useState<number>(0); // Track time left for token expiration
-  const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  // Decode token and get the expiration time
-  const getTokenExpiry = (token: string) => {
-    const decoded: any = jwtDecode(token);
-    return decoded.exp * 1000; // Convert to milliseconds
-  };
+  useEffect(() => {
+    let tokenRefreshTimeout: NodeJS.Timeout;
 
-  // Function to check if the token is about to expire and refresh it
-  const checkTokenExpiry = () => {
-    const accessToken = localStorage.getItem('access_token');
-    if (accessToken) {
-      const expiryTime = getTokenExpiry(accessToken);
-      const timeLeft = expiryTime - Date.now();
+    const checkToken = () => {
+      const accessToken = localStorage.getItem('access_token');
 
-      if (timeLeft <= 5 * 60 * 1000 && timeLeft > 0) { // If expiry time is less than 5 minutes
-        setIsTokenExpiring(true);
-        if (timer) clearTimeout(timer);
+      if (accessToken) {
+        try {
+          const decoded: JwtPayload = jwtDecode(accessToken);
+          const currentTime = Date.now() / 1000; // Convert to seconds
+          const expTime = decoded.exp;
+          const timeRemaining = expTime - currentTime;
 
-        setTimer(
-          setTimeout(async () => {
-            const success = await refreshToken(); // Attempt to refresh the token
-            if (!success) {
-              setIsLoggedIn(false);
+          setTimeLeft(timeRemaining);
+
+          if (timeRemaining > 0) {
+            setIsLoggedIn(true);
+
+            if (timeRemaining < 60) { // Less than 60 seconds left
+              setIsTokenExpiring(true);
+              // Attempt to refresh the token
+              refreshToken().then(success => {
+                if (success) {
+                  setIsTokenExpiring(false);
+                  checkToken(); // Recheck the token after refreshing
+                } else {
+                  // Refresh failed, log out
+                  setIsLoggedIn(false);
+                }
+              });
+            } else {
+              setIsTokenExpiring(false);
+              // Set timeout to check the token again 60 seconds before it expires
+              if (tokenRefreshTimeout) {
+                clearTimeout(tokenRefreshTimeout);
+              }
+              tokenRefreshTimeout = setTimeout(() => {
+                checkToken();
+              }, (timeRemaining - 60) * 1000);
             }
+          } else {
+            // Token has expired
+            setIsLoggedIn(false);
             setIsTokenExpiring(false);
             setTimeLeft(0);
-          }, timeLeft)
-        );
-      } else if (timeLeft > 0) {
-        setTimeLeft(timeLeft);
-      }
-    }
-  };
-
-  // Check login status and set up token expiry check
-  useEffect(() => {
-    const checkLoginStatus = () => {
-      const accessToken = localStorage.getItem('access_token');
-      setIsLoggedIn(!!accessToken);
-      if (accessToken) {
-        checkTokenExpiry(); // Check token expiry when user is logged in
+          }
+        } catch (error) {
+          console.error('Error decoding token:', error);
+          setIsLoggedIn(false);
+          setIsTokenExpiring(false);
+          setTimeLeft(0);
+        }
+      } else {
+        // No token found
+        setIsLoggedIn(false);
+        setIsTokenExpiring(false);
+        setTimeLeft(0);
       }
     };
 
-    checkLoginStatus();
-    window.addEventListener('storage', checkLoginStatus); // Listen for localStorage changes
+    // Initial token check
+    checkToken();
 
+    // Listen for custom 'tokenUpdated' events to re-check the token
+    const handleTokenUpdated = () => {
+      checkToken();
+    };
+
+    window.addEventListener('tokenUpdated', handleTokenUpdated);
+
+    // Cleanup on unmount
     return () => {
-      window.removeEventListener('storage', checkLoginStatus); // Cleanup listener
-      if (timer) clearTimeout(timer); // Cleanup timer
+      if (tokenRefreshTimeout) {
+        clearTimeout(tokenRefreshTimeout);
+      }
+      window.removeEventListener('tokenUpdated', handleTokenUpdated);
     };
-  }, [timer]);
+  }, []);
 
-  return { isLoggedIn, isTokenExpiring, timeLeft };
+  return { isLoggedIn, isTokenExpiring, timeLeft};
 };
 
 export default useAuth;
