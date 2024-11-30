@@ -25,9 +25,6 @@ export async function login(username: string, password: string): Promise<boolean
     localStorage.setItem('access_token', access);
     localStorage.setItem('refresh_token', refresh);
 
-    // Dispatch a custom event
-    window.dispatchEvent(new Event('tokenUpdated'));
-
     return true;
   } catch (error: any) {
     if (error.response) {
@@ -89,9 +86,6 @@ export async function logout(): Promise<boolean> {
     // Clear tokens from localStorage
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-
-    // Dispatch a custom event
-    window.dispatchEvent(new Event('tokenCleared'));
 
     return true;
   } catch (error: any) {
