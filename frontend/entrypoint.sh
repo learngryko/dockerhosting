@@ -52,5 +52,13 @@ else
   echo "jwt-decode is already installed. Skipping."
 fi
 
+# Install jwt-decode if not already installed
+if ! npm list @heroicons/react > /dev/null 2>&1; then
+  echo "Installing jwt-decode..."
+  npm install @heroicons/react
+else
+  echo "@heroicons/react is already installed. Skipping."
+fi
+
 # Start the Next.js app
 npm run dev

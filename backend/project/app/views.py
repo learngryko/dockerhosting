@@ -12,6 +12,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.shortcuts import get_object_or_404
+
 
 # Set up a logger
 logger = logging.getLogger(__name__)
@@ -35,9 +37,12 @@ class LogoutView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class CloneRepositoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         try:
-            data = request.data  # Use request.data in DRF
+            data = request.data
             repository_url = data.get('repository_url')
             project_name = data.get('project_name')
             project_description = data.get('description', '')
@@ -58,7 +63,7 @@ class CloneRepositoryView(APIView):
                 description=project_description.replace('\0', ''),
                 repository_url=repository_url,
                 build_file_path=build_file_path,
-                owner = request.user
+                owner=request.user
             )
 
             for root, dirs, files in os.walk(repo_dir):
@@ -89,50 +94,61 @@ class CloneRepositoryView(APIView):
                 shutil.rmtree(repo_dir)
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class UserProjectsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            # Get the current authenticated user
             user = request.user
-
-            # Fetch all projects where the owner is the current user
             projects = Project.objects.filter(owner=user)
-
-            # Serialize the project data
             serializer = ProjectSerializer(projects, many=True)
-
             return Response({'status': 'success', 'projects': serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class ListFilesView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, project_name):
         try:
-            project = Project.objects.get(name=project_name)
+            user = request.user
+            project = get_object_or_404(Project, name=project_name, owner=user)
             files = File.objects.filter(project=project)
 
             files_list = [{'file_path': file.file_path, 'extension': file.extension} for file in files]
             return Response({'status': 'success', 'files': files_list}, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response({'status': 'error', 'message': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
-
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class FileContentView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, project_name, file_path):
         try:
-            project = Project.objects.get(name=project_name)
-            file = File.objects.get(project=project, file_path=file_path)
+            user = request.user
+            project = get_object_or_404(Project, name=project_name, owner=user)
+            file = get_object_or_404(File, project=project, file_path=file_path)
             return Response({'status': 'success', 'content': file.content}, status=status.HTTP_200_OK)
         except (Project.DoesNotExist, File.DoesNotExist):
             return Response({'status': 'error', 'message': 'Project or file not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request, project_name, file_path):
         try:
-            project = Project.objects.get(name=project_name)
-            file = File.objects.get(project=project, file_path=file_path)
+            user = request.user
+            project = get_object_or_404(Project, name=project_name, owner=user)
+            file = get_object_or_404(File, project=project, file_path=file_path)
             data = request.data
             new_content = data.get('content', '')
             file.content = new_content
@@ -141,7 +157,9 @@ class FileContentView(APIView):
         except (Project.DoesNotExist, File.DoesNotExist):
             return Response({'status': 'error', 'message': 'Project or file not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
 class CreateContainerView(APIView):
     def post(self, request):

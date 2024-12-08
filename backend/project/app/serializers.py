@@ -1,4 +1,5 @@
 # serializers.py
+
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Project, Environment, File, Container
@@ -13,7 +14,8 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = '__all__'  # Serialize all fields
+        fields = ['id', 'name', 'description', 'repository_url', 'build_file_path', 'owner', 'created_at', 'updated_at']
+
 
 class EnvironmentSerializer(serializers.ModelSerializer):
     project = ProjectSerializer(read_only=True)  # Nested project serializer
@@ -27,11 +29,11 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        fields = '__all__' 
+        fields = ['id', 'project', 'file_path', 'content', 'extension', 'to_host', 'created_at', 'updated_at'] 
 
 class ContainerSerializer(serializers.ModelSerializer):
     project = ProjectSerializer(read_only=True)
 
     class Meta:
         model = Container
-        fields = '__all__'
+        fields = ['id', 'container_id', 'project', 'status', 'port', 'created_at', 'updated_at']
