@@ -8,6 +8,8 @@ import config from '@/../config';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import FileTree from './FileTree';
 import { buildFileTree, TreeNode, FileItem } from '@/utils/buildFileTree';
+import CodeEditor from './CodeEditor'; // Import the CodeEditor component
+import { getLanguage } from '@/utils/getLanguage'; // Import the language utility
 
 interface ProjectConfigModalProps {
   project: any;
@@ -19,6 +21,7 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
+  const [fileExtension, setFileExtension] = useState<string>('.txt'); // Default extension
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isFetchingFiles, setIsFetchingFiles] = useState<boolean>(true);
@@ -42,7 +45,7 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
             Authorization: `Bearer ${accessToken}`,
           },
         });
-        const tree = buildFileTree(response.data.files);
+        const tree = buildFileTree(response.data.files, searchTerm);
         setFileTree(tree);
         setIsFetchingFiles(false);
       } catch (err: any) {
@@ -53,7 +56,7 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
     };
 
     fetchFiles();
-  }, [FILES_ENDPOINT]);
+  }, [FILES_ENDPOINT, searchTerm]);
 
   const handleFileSelect = async (filePath: string) => {
     const accessToken = localStorage.getItem('access_token');
@@ -70,6 +73,8 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
       });
       setSelectedFile(filePath);
       setFileContent(response.data.content);
+      const ext = filePath.substring(filePath.lastIndexOf('.')) || '.txt';
+      setFileExtension(ext);
       setError(null);
     } catch (err: any) {
       console.error(err);
@@ -109,6 +114,25 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
     }
   };
 
+  // Debounce the search input to optimize performance
+  // You can use lodash's debounce or implement your own
+  // For simplicity, we'll implement a simple debounce using useEffect
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>(searchTerm);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setFileTree(buildFileTree(fileTree, debouncedSearchTerm));
+  }, [debouncedSearchTerm]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white w-11/12 md:w-3/4 lg:w-1/2 h-5/6 rounded-lg shadow-lg overflow-y-auto relative">
@@ -135,9 +159,7 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
               <div className="md:w-1/3 mb-4 md:mb-0">
                 <h3 className="text-xl font-semibold mb-2">Files</h3>
                 <div className="border rounded-lg p-2 max-h-64 overflow-y-auto">
-                  {/* Optional Search Input */}
-                  {/* Uncomment the following block if you implement search functionality */}
-                  {/* 
+                  {/* Search Input */}
                   <input
                     type="text"
                     placeholder="Search files..."
@@ -145,7 +167,6 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full p-2 border rounded mb-4"
                   />
-                  */}
                   {fileTree.length > 0 ? (
                     fileTree.map((node) => (
                       <FileTree
@@ -162,15 +183,17 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
               </div>
 
               {/* File Content Editor */}
-              <div className="md:w-2/3 md:pl-4">
+              <div className="md:w-2/3 md:pl-4 flex flex-col">
                 {selectedFile ? (
                   <>
                     <h3 className="text-xl font-semibold mb-2">Editing: {selectedFile}</h3>
-                    <textarea 
-                      className="w-full h-64 p-2 border rounded-lg resize-none"
-                      value={fileContent}
-                      onChange={(e) => setFileContent(e.target.value)}
-                    />
+                    <div className="flex-1 border rounded-lg overflow-hidden">
+                      <CodeEditor
+                        language={getLanguage(fileExtension)}
+                        value={fileContent}
+                        onChange={(value) => setFileContent(value || '')}
+                      />
+                    </div>
                     <button 
                       onClick={handleSave} 
                       className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
@@ -180,7 +203,7 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
                     </button>
                   </>
                 ) : (
-                  <div className="text-gray-500">Select a file to view and edit its content.</div>
+                  <div className="text-gray-500 flex-1 flex items-center justify-center">Select a file to view and edit its content.</div>
                 )}
               </div>
             </div>

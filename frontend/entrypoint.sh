@@ -52,12 +52,36 @@ else
   echo "jwt-decode is already installed. Skipping."
 fi
 
-# Install jwt-decode if not already installed
+# Install @heroicons/react if not already installed
 if ! npm list @heroicons/react > /dev/null 2>&1; then
-  echo "Installing jwt-decode..."
+  echo "Installing @heroicons/react..."
   npm install @heroicons/react
 else
   echo "@heroicons/react is already installed. Skipping."
+fi
+
+# Install @headlessui/react if not already installed
+if ! npm list @headlessui/react > /dev/null 2>&1; then
+  echo "Installing @headlessui/react..."
+  npm install @headlessui/react
+else
+  echo "@headlessui/react is already installed. Skipping."
+fi
+
+# Install @monaco-editor/react if not already installed
+if ! npm list @monaco-editor/react > /dev/null 2>&1; then
+  echo "Installing @monaco-editor/react..."
+  npm install @monaco-editor/react
+else
+  echo "@monaco-editor/react is already installed. Skipping."
+fi
+
+# Install monaco-editor if not already installed
+if ! npm list monaco-editor > /dev/null 2>&1; then
+  echo "Installing jwt-decode..."
+  npm install monaco-editor
+else
+  echo "monaco-editor is already installed. Skipping."
 fi
 
 # Start the Next.js app
