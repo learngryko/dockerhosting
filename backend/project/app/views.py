@@ -212,12 +212,15 @@ class CreateContainerView(APIView):
 
             container = client.containers.run(
                 image=f"{project_name}_image",
-                ports={f"{port}/tcp": port},
                 detach=True,
                 name=container_name,
-                volumes={
-                    f"/app/repos/{project_name}": {"bind": "/app", "mode": "rw"}
-                }
+                labels={
+                    "traefik.enable": "true",
+                    "traefik.http.routers.mycontainer.rule": f"Host(`localhost`) && PathPrefix(`/containers/{container_name}`)",
+                    "traefik.http.routers.mycontainer.entrypoints": "websecure",
+                    "traefik.http.routers.mycontainer.tls": "true",
+                    "traefik.http.services.mycontainer.loadbalancer.server.port": f"{port}"
+                },
             )
 
             Container.objects.create(
