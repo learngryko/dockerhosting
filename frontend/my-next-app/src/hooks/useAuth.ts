@@ -30,9 +30,6 @@ const useAuth = () => {
           const decoded: JwtPayload = jwtDecode(accessToken);
           const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
           const timeRemaining = decoded.exp - currentTime;
-          console.info(decoded.exp)
-          console.info(currentTime)
-          console.info(timeRemaining)
           setTimeLeft(timeRemaining);
 
           if (timeRemaining > 0) {

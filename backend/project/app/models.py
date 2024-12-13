@@ -40,11 +40,13 @@ class File(models.Model):
 
 class Container(models.Model):
     project = models.ForeignKey(Project, related_name='containers', on_delete=models.CASCADE)
-    container_id = models.CharField(max_length=255)  # Docker container ID
-    status = models.CharField(max_length=50)  # e.g., 'running', 'stopped'
-    port = models.IntegerField()  # Port the container is running on
+    container_id = models.CharField(max_length=255, unique=True)
+    container_name = models.CharField(max_length=255, unique=True, null=True)
+    status = models.CharField(max_length=50)
+    port = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Container {self.container_id} for {self.project.name}"
+        return f"Container {self.container_name} ({self.container_id}) for {self.project.name}"
+

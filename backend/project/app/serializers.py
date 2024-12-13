@@ -32,8 +32,8 @@ class FileSerializer(serializers.ModelSerializer):
         fields = ['id', 'project', 'file_path', 'content', 'extension', 'to_host', 'created_at', 'updated_at'] 
 
 class ContainerSerializer(serializers.ModelSerializer):
-    project = ProjectSerializer(read_only=True)
+    project = serializers.CharField(source='project.name', read_only=True)
 
     class Meta:
         model = Container
-        fields = ['id', 'container_id', 'project', 'status', 'port', 'created_at', 'updated_at']
+        fields = ['id', 'container_id', 'status', 'port', 'created_at', 'updated_at', 'project']

@@ -1,5 +1,5 @@
 // Updated Interfaces for Django models
-
+// src/types/models.ts
 export interface User {
   id: number;
   username: string;
