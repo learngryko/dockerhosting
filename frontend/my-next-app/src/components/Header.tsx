@@ -21,6 +21,11 @@ const Header: FC = () => {
               Projects
             </Link>
           </li>
+          <li>
+            <Link href="/containers" className="text-white hover:text-blue-300 transition-colors">
+              Containers
+            </Link>
+          </li>
           <li className="ml-auto">
             {isLoggedIn ? (
               <Link href="/logout" className="text-white hover:text-blue-300 transition-colors">

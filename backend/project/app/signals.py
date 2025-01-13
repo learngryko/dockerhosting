@@ -24,7 +24,3 @@ def copy_file_to_host(sender, instance, **kwargs):
         # Write the file content to the file path
         with open(file_path, 'w') as file:
             file.write(instance.content)
-
-        # Optionally, you could set `to_host` to `False` after copying to avoid repeated copies
-        instance.to_host = False
-        instance.save()
