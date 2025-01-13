@@ -76,13 +76,5 @@ else
   echo "@monaco-editor/react is already installed. Skipping."
 fi
 
-# Install monaco-editor if not already installed
-if ! npm list monaco-editor > /dev/null 2>&1; then
-  echo "Installing jwt-decode..."
-  npm install monaco-editor
-else
-  echo "monaco-editor is already installed. Skipping."
-fi
-
 # Start the Next.js app
 npm run dev

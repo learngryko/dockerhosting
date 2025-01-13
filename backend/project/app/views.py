@@ -3,6 +3,7 @@ import git
 import shutil  # for deleting the repo folder
 import logging
 import docker
+import time
 from django.conf import settings
 from .models import Project, File, Container
 from .serializers import ProjectSerializer, ContainerSerializer
@@ -33,7 +34,6 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
 class CloneRepositoryView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -48,14 +48,26 @@ class CloneRepositoryView(APIView):
             build_file_path = data.get('build_file_path', 'NOT SET')
 
             if not project_name or not repository_url:
+                logger.error("Project name and repository URL are required.")
                 return Response({'status': 'error', 'message': 'Project name and repository URL are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
             repo_dir = os.path.join(settings.BASE_DIR, 'repositories', project_name)
+
             if os.path.exists(repo_dir):
+                logger.info(f"Removing existing directory: {repo_dir}")
                 shutil.rmtree(repo_dir)
+
+            logger.info(f"Creating directory for repository: {repo_dir}")
             os.makedirs(repo_dir)
 
-            git.Repo.clone_from(repository_url, repo_dir)
+            logger.info(f"Starting clone from {repository_url} to {repo_dir}")
+
+            def progress_callback(op_code, cur_count, max_count, message):
+                percent_complete = (cur_count / max_count) * 100 if max_count else 0
+                logger.info(f"Cloning progress: {percent_complete:.2f}% complete")
+
+            repo = git.Repo.clone_from(repository_url, repo_dir, progress=progress_callback)
+            logger.info("Repository cloned successfully.")
 
             project = Project.objects.create(
                 name=project_name,
@@ -64,6 +76,7 @@ class CloneRepositoryView(APIView):
                 build_file_path=build_file_path,
                 owner=request.user
             )
+            logger.info(f"Project {project_name} created successfully.")
 
             for root, dirs, files in os.walk(repo_dir):
                 for file in files:
@@ -80,16 +93,20 @@ class CloneRepositoryView(APIView):
                         content=content,
                         extension=file_extension
                     )
+            logger.info(f"Files for project {project_name} created successfully.")
 
             shutil.rmtree(repo_dir)
+            logger.info(f"Temporary repository directory {repo_dir} removed.")
+
             return Response({'status': 'success', 'message': 'Project and files created successfully.'}, status=status.HTTP_201_CREATED)
 
         except git.exc.GitError as e:
-            logger.error(f"Git error: {str(e)}")
+            logger.error(f"Git error during clone: {str(e)}")
             return Response({'status': 'error', 'message': f'Git error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            logger.error(f"An error occurred: {str(e)}")
+            logger.error(f"An unexpected error occurred: {str(e)}")
             if repo_dir and os.path.exists(repo_dir):
+                logger.info(f"Cleaning up directory due to error: {repo_dir}")
                 shutil.rmtree(repo_dir)
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
