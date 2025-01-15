@@ -13,3 +13,6 @@ tls:
   certificates:
     - certFile: "/certs/selfsigned.crt"
       keyFile: "/certs/selfsigned.key"
+
+log:
+  level: DEBUG
