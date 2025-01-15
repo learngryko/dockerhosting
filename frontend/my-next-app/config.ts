@@ -1,5 +1,5 @@
 const settings = {
-    backendurl: "https://localhost/api/",
+    backendurl: "https://192.168.0.100/api/",
   };
   
 export default settings;
