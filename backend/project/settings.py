@@ -25,6 +25,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET')
 DEBUG = True
 
 ALLOWED_HOSTS = [
+    "192.168.0.100",
     "localhost",           # For external access on the host
     "127.0.0.1",           # Local testing
     "django",              # Internal Docker service name for Django
