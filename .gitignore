@@ -67,3 +67,7 @@ Thumbs.db
 ehthumbs.db
 Icon?
 Desktop.ini
+
+# Certs
+*.key
+*.crt
