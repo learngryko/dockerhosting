@@ -23,7 +23,6 @@ fi
 
 # Install dependencies
 npm install
-npm update --save
 
 # Install axios if not already installed
 if ! npm list axios > /dev/null 2>&1; then
