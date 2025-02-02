@@ -44,7 +44,7 @@ services:
       - ./backend:/app
       - repos_data:/app/repos
     environment:
-      DEBUG: 1
+      DEBUG: ${DJANGO_DEBUG}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -72,7 +72,7 @@ services:
     volumes:
       - ./frontend:/app
     environment:
-      DEBUG: 1
+      DEBUG: ${NEXT_DEBUG}
       HOST_IP: ${HOST_IP}
       API_URL: ${NEXT_PUBLIC_BACKEND_URL}
     networks:
