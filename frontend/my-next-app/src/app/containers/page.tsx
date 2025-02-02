@@ -25,7 +25,7 @@ export default function ContainersPage() {
   const [port, setPort] = useState<number>(8080);
   const [isCreating, setIsCreating] = useState<boolean>(false);
 
-  // Track container actions
+  // Track container actions (start/stop/delete)
   const [actionInProgress, setActionInProgress] = useState<string | null>(null); 
 
   const isCheckingAuth = useAuthRedirect("/containers");
@@ -34,6 +34,8 @@ export default function ContainersPage() {
     : `${config.backendurl}/`;
   const CONTAINERS_ENDPOINT = `${API_URL}containers/`;
   const CREATE_ENDPOINT = `${API_URL}containers/create/`;
+  // New DELETE endpoint:
+  const DELETE_ENDPOINT = `${API_URL}containers/delete/`;
   const START_ENDPOINT = (container_id: string) => `${API_URL}containers/${container_id}/start/`;
   const STOP_ENDPOINT = (container_id: string) => `${API_URL}containers/${container_id}/stop/`;
   const PROJECTS_ENDPOINT = `${API_URL}user/projects/`;
@@ -181,8 +183,38 @@ export default function ContainersPage() {
     }
   };
 
+  const handleDelete = async (containerId: string) => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      setError("No access token found");
+      return;
+    }
+    setActionInProgress(containerId);
+    try {
+      await axios.delete(DELETE_ENDPOINT, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        // Pass container_id in the data of the DELETE request.
+        data: { container_id: containerId },
+      });
+      // Remove the deleted container from the state.
+      setContainers((prev) =>
+        prev.filter((c) => c.container_id !== containerId)
+      );
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to delete container");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   if (isCheckingAuth || isLoading) {
-    return <><Header /><div className="flex justify-center items-center h-screen">Loading...</div></>;
+    return (
+      <>
+        <Header />
+        <div className="flex justify-center items-center h-screen">Loading...</div>
+      </>
+    );
   }
 
   return (
@@ -270,52 +302,61 @@ export default function ContainersPage() {
               </tr>
             </thead>
             <tbody>
-            {containers.map((c) => {
-              const isRunning = c.status === "running";
-              const isActionDisabled = actionInProgress === c.container_id;
-              const serviceUrl = `https://${config.host_ip}/proxy/${c.project}_container`;
-              return (
-                <tr key={c.container_id} className="hover:bg-gray-100">
-                  <td>{c.container_id}</td>
-                  <td>{c.project.name}</td>
-                  <td>{c.status}</td>
-                  <td>{c.port}</td>
-                  <td className="space-x-2">
-                    {/* Start / Stop Buttons */}
-                    {!isRunning && (
-                      <button
-                        onClick={() => handleStart(c.container_id)}
-                        disabled={isActionDisabled}
-                        className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 disabled:opacity-50"
-                      >
-                        {isActionDisabled ? "Starting..." : "Start"}
-                      </button>
-                    )}
-                    {isRunning && (
-                      <button
-                        onClick={() => handleStop(c.container_id)}
-                        disabled={isActionDisabled}
-                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50"
-                      >
-                        {isActionDisabled ? "Stopping..." : "Stop"}
-                      </button>
-                    )}
+              {containers.map((c) => {
+                const isRunning = c.status === "running";
+                const isActionDisabled = actionInProgress === c.container_id;
+                const serviceUrl = `https://${config.host_ip}/proxy/${c.project}_container`;
+                return (
+                  <tr key={c.container_id} className="hover:bg-gray-100">
+                    <td>{c.container_id}</td>
+                    <td>{c.project.name}</td>
+                    <td>{c.status}</td>
+                    <td>{c.port}</td>
+                    <td className="space-x-2">
+                      {/* Start / Stop Buttons */}
+                      {!isRunning && (
+                        <button
+                          onClick={() => handleStart(c.container_id)}
+                          disabled={isActionDisabled}
+                          className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 disabled:opacity-50"
+                        >
+                          {isActionDisabled ? "Starting..." : "Start"}
+                        </button>
+                      )}
+                      {isRunning && (
+                        <button
+                          onClick={() => handleStop(c.container_id)}
+                          disabled={isActionDisabled}
+                          className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50"
+                        >
+                          {isActionDisabled ? "Stopping..." : "Stop"}
+                        </button>
+                      )}
 
-                    {/* Link to service (only if running) */}
-                    {isRunning && (
-                      <a
-                        href={serviceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDelete(c.container_id)}
+                        disabled={isActionDisabled}
+                        className="bg-gray-700 text-white px-2 py-1 rounded hover:bg-gray-800 disabled:opacity-50"
                       >
-                        Open Service
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+                        {isActionDisabled ? "Deleting..." : "Delete"}
+                      </button>
+
+                      {/* Link to service (only if running) */}
+                      {isRunning && (
+                        <a
+                          href={serviceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                        >
+                          Open Service
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (

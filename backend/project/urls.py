@@ -20,6 +20,7 @@ urlpatterns = [
 
     path('api/containers/', ListContainersView.as_view(), name='list_containers'),
     path('api/containers/create/', CreateContainerView.as_view(), name='create_container'),
+    path('api/containers/delete/', DeleteContainerView.as_view(), name='delete_container'),
     path('api/containers/<str:project_name>/', ListContainersView.as_view(), name='list_containers_project'),
     path('api/containers/<str:container_id>/start/', StartContainerView.as_view(), name='start_container'),
     path('api/containers/<str:container_id>/stop/', StopContainerView.as_view(), name='stop_container'),

@@ -263,6 +263,93 @@ class CreateContainerView(APIView):
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class DeleteContainerView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        # Expect the container_id to be provided in the request body.
+        container_id = request.data.get('container_id')
+        if not container_id:
+            return Response(
+                {'status': 'error', 'message': 'Container ID is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Retrieve the container record from the database.
+            container_record = Container.objects.get(container_id=container_id)
+        except Container.DoesNotExist:
+            return Response(
+                {'status': 'error', 'message': 'Container not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Ensure that the container belongs to the requesting user.
+        if container_record.project.owner != request.user:
+            return Response(
+                {'status': 'error', 'message': 'Not allowed to delete this container.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Connect to Docker using the same settings as in your creation view.
+            client = docker.DockerClient(base_url=settings.DIND_URL)
+
+            # Try to get the Docker container using its container ID.
+            try:
+                docker_container = client.containers.get(container_id)
+            except docker.errors.NotFound:
+                docker_container = None
+
+            if docker_container:
+                # Stop the container if it is running.
+                if docker_container.status == 'running':
+                    logger.info(f"Stopping container {container_id}")
+                    docker_container.stop()
+                # Remove the container along with its volumes.
+                docker_container.remove(v=True, force=True)
+                logger.info(f"Container {container_id} removed successfully.")
+            else:
+                logger.warning(f"Docker container with ID {container_id} not found. Continuing cleanup.")
+
+            # Remove the Docker image associated with the project.
+            # (Assuming the image tag follows the pattern "<project_name>_image")
+            image_tag = f"{container_record.project.name}_image"
+            try:
+                client.images.remove(image=image_tag, force=True)
+                logger.info(f"Image {image_tag} removed successfully.")
+            except docker.errors.ImageNotFound:
+                logger.warning(f"Image {image_tag} not found. It may have already been removed.")
+
+            # Optionally, reverse any other side-effects.
+            # For example, update the files associated with the project to set `to_host` back to False.
+            files = File.objects.filter(project=container_record.project)
+            for file in files:
+                file.to_host = False
+                file.save()
+                logger.info(f"File {file.file_path}: to_host set to {file.to_host}")
+
+            # Finally, remove the container record from the database.
+            container_record.delete()
+
+            return Response({
+                'status': 'success',
+                'message': 'Container, associated volumes, and image removed successfully.'
+            }, status=status.HTTP_200_OK)
+
+        except docker.errors.DockerException as e:
+            logger.error(f"Docker error: {str(e)}")
+            return Response(
+                {'status': 'error', 'message': f'Docker error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            return Response(
+                {'status': 'error', 'message': f'An error occurred: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ListContainersView(APIView):
     authentication_classes = [JWTAuthentication]
