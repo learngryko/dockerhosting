@@ -182,7 +182,7 @@ export default function ContainersPage() {
   };
 
   if (isCheckingAuth || isLoading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return <><Header /><div className="flex justify-center items-center h-screen">Loading...</div></>;
   }
 
   return (
@@ -270,38 +270,52 @@ export default function ContainersPage() {
               </tr>
             </thead>
             <tbody>
-              {containers.map((c) => {
-                const isRunning = c.status === "running";
-                const isActionDisabled = actionInProgress === c.container_id; 
-                return (
-                  <tr key={c.container_id} className="hover:bg-gray-100">
-                    <td className="py-4 px-6">{c.container_id}</td>
-                    <td className="py-4 px-6">{c.project}</td>
-                    <td className="py-4 px-6">{c.status}</td>
-                    <td className="py-4 px-6">{c.port}</td>
-                    <td className="py-4 px-6 space-x-2">
-                      {!isRunning && (
-                        <button
-                          onClick={() => handleStart(c.container_id)}
-                          className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 disabled:opacity-50"
-                          disabled={isActionDisabled}
-                        >
-                          {isActionDisabled ? "Starting..." : "Start"}
-                        </button>
-                      )}
-                      {isRunning && (
-                        <button
-                          onClick={() => handleStop(c.container_id)}
-                          className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50"
-                          disabled={isActionDisabled}
-                        >
-                          {isActionDisabled ? "Stopping..." : "Stop"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+            {containers.map((c) => {
+              const isRunning = c.status === "running";
+              const isActionDisabled = actionInProgress === c.container_id;
+              const serviceUrl = `https://${config.host_ip}/proxy/${c.project}_container`;
+              return (
+                <tr key={c.container_id} className="hover:bg-gray-100">
+                  <td>{c.container_id}</td>
+                  <td>{c.project.name}</td>
+                  <td>{c.status}</td>
+                  <td>{c.port}</td>
+                  <td className="space-x-2">
+                    {/* Start / Stop Buttons */}
+                    {!isRunning && (
+                      <button
+                        onClick={() => handleStart(c.container_id)}
+                        disabled={isActionDisabled}
+                        className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 disabled:opacity-50"
+                      >
+                        {isActionDisabled ? "Starting..." : "Start"}
+                      </button>
+                    )}
+                    {isRunning && (
+                      <button
+                        onClick={() => handleStop(c.container_id)}
+                        disabled={isActionDisabled}
+                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50"
+                      >
+                        {isActionDisabled ? "Stopping..." : "Stop"}
+                      </button>
+                    )}
+
+                    {/* Link to service (only if running) */}
+                    {isRunning && (
+                      <a
+                        href={serviceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                      >
+                        Open Service
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             </tbody>
           </table>
         ) : (

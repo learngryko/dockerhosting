@@ -77,4 +77,5 @@ else
 fi
 
 # Start the Next.js app
-npm run dev
+npm run dev -- -H 0.0.0.0
+

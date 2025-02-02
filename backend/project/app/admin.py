@@ -67,7 +67,7 @@ class ProjectAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         # Only perform cloning on creation (not on edit)
         if not change:
-            repo_dir = os.path.join(settings.BASE_DIR, 'repositories', obj.name)
+            repo_dir = os.path.join(settings.BASE_DIR, 'temp_repo', obj.name)
             try:
                 with transaction.atomic():  # Ensure atomicity
                     # Save the Project object first

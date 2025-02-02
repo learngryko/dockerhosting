@@ -64,7 +64,7 @@ const ProjectsPage = () => {
   };
 
   if (isCheckingAuth || isLoading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return <><Header /><div className="flex justify-center items-center h-screen">Loading...</div></>;
   }
 
   return (

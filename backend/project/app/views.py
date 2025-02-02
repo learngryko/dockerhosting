@@ -3,7 +3,9 @@ import git
 import shutil  # for deleting the repo folder
 import logging
 import docker
-import time
+import requests
+
+
 from django.conf import settings
 from .models import Project, File, Container
 from .serializers import ProjectSerializer, ContainerSerializer
@@ -14,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
+from django.http import StreamingHttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +54,7 @@ class CloneRepositoryView(APIView):
                 logger.error("Project name and repository URL are required.")
                 return Response({'status': 'error', 'message': 'Project name and repository URL are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            repo_dir = os.path.join(settings.BASE_DIR, 'repositories', project_name)
+            repo_dir = os.path.join(settings.BASE_DIR, 'temp_repo', project_name)
 
             if os.path.exists(repo_dir):
                 logger.info(f"Removing existing directory: {repo_dir}")
@@ -230,22 +233,27 @@ class CreateContainerView(APIView):
             container = client.containers.run(
                 image=f"{project_name}_image",
                 detach=True,
+                ports={f"{port}/tcp": port},
                 name=container_name,
                 labels={
                     "traefik.enable": "true",
-                    "traefik.http.routers.mycontainer.rule": f"Host(`localhost`) && PathPrefix(`/containers/{container_name}`)",
-                    "traefik.http.routers.mycontainer.entrypoints": "websecure",
-                    "traefik.http.routers.mycontainer.tls": "true",
-                    "traefik.http.services.mycontainer.loadbalancer.server.port": f"{port}"
+                    # use the container_name as part of the router's name
+                    f"traefik.http.routers.webhelloword_container.priority": "100",
+                    # f"traefik.http.routers.{container_name}.rule": f"Host(`{os.environ.get('HOST_IP')}`) && PathPrefix(`/{container_name}`)",
+                    "traefik.http.routers.webhelloword_container.rule": "Host(`localhost`) && PathPrefix(`/webhelloword_container`)",
+                    f"traefik.http.routers.webhelloword_container.entrypoints": "websecure",
+                    f"traefik.http.routers.webhelloword_container.tls": "true",
+                    f"traefik.http.services.webhelloword_container.loadbalancer.server.port": "8080"
                 },
             )
+
 
             Container.objects.create(
                 project=project,
                 container_id=container.id,
                 container_name=container_name,
                 status='running',
-                port=port
+                port=port,
             )
 
             return Response({
@@ -374,3 +382,92 @@ class SetToHostFlagView(APIView):
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ContainerProxyView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def dispatch(self, request, *args, **kwargs):
+        self.container_name = kwargs.get("container_name")
+        # Remove any leading slash to avoid "//" in the URL
+        self.forwarded_path = kwargs.get("path", "").lstrip("/")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _get_target_container(self):
+        container = Container.objects.filter(container_name=self.container_name).first()
+        if not container:
+            logger.error(f"Container '{self.container_name}' not found.")
+        return container
+
+    def filter_headers(self, headers):
+        # Remove headers that might cause issues
+        excluded_headers = {"host", "content-length", "connection", "accept-encoding"}
+        return {k: v for k, v in headers.items() if k.lower() not in excluded_headers}
+
+    def proxy_request(self, request, target_url, headers):
+        try:
+            filtered_headers = self.filter_headers(headers)
+            response = requests.request(
+                method=request.method,
+                url=target_url,
+                headers=filtered_headers,
+                data=request.body if request.body else None,
+                allow_redirects=False,
+                timeout=5,
+                stream=True  # stream response content
+            )
+            return response
+        except requests.RequestException as e:
+            logger.error(f"Proxy request failed: {e}")
+            return None
+
+    def process_proxy(self, request):
+        container = self._get_target_container()
+        if not container:
+            return Response({"error": "Container not found."}, status=404)
+
+        # Build the target URL (ensure we don't accidentally include extra slashes)
+        target_url = f"http://dind:{container.port}/{self.forwarded_path}"
+        if request.META.get("QUERY_STRING"):
+            target_url += f"?{request.META['QUERY_STRING']}"
+
+        logger.info(f"Forwarding request to: {target_url}")
+        proxied_response = self.proxy_request(request, target_url, request.headers)
+        if proxied_response is None:
+            return Response({"error": "Error forwarding request."}, status=500)
+
+        # Build a streaming response using the proxied content
+        response = StreamingHttpResponse(
+            proxied_response.iter_content(chunk_size=8192),
+            status=proxied_response.status_code,
+            reason=proxied_response.reason,
+        )
+
+        # Copy headers from the proxied response, excluding a few that Django manages
+        excluded_headers = {"content-encoding", "transfer-encoding", "connection", "keep-alive"}
+        for header, value in proxied_response.headers.items():
+            if header.lower() not in excluded_headers:
+                response[header] = value
+
+        return response
+
+    def get(self, request, *args, **kwargs): 
+        return self.process_proxy(request)
+
+    def post(self, request, *args, **kwargs): 
+        return self.process_proxy(request)
+
+    def put(self, request, *args, **kwargs): 
+        return self.process_proxy(request)
+
+    def patch(self, request, *args, **kwargs): 
+        return self.process_proxy(request)
+
+    def delete(self, request, *args, **kwargs): 
+        return self.process_proxy(request)
+
+    def head(self, request, *args, **kwargs): 
+        return self.process_proxy(request)
+
+    def options(self, request, *args, **kwargs): 
+        return self.process_proxy(request)

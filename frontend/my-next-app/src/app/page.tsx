@@ -5,7 +5,7 @@ export default function Home() {
       <Header />
       <main>
         <h1>Welcome to the Home Page</h1>
-        <p>This is your main content.</p>
+        <p>Here should be README.</p>  {/* #TODO README content */}
       </main>
     </>
   );

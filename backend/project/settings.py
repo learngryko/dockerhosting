@@ -18,13 +18,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET')
 
-# SECURITY WARNING: don't run with debug turned on in production!
+SECRET_KEY = os.environ.get('DJANGO_SECRET')
+HOST_IP = os.environ.get('HOST_IP')
 DEBUG = False
+DEBUG = os.environ.get('DEBUG')
+DIND_URL=os.environ.get('DOCKER_HOST')
+
 
 ALLOWED_HOSTS = [
+    HOST_IP,
     "192.168.0.100",
     "localhost",           # For external access on the host
     "127.0.0.1",           # Local testing
@@ -49,7 +52,7 @@ CORS_ALLOW_CREDENTIALS = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
-DIND_URL=os.environ.get('DOCKER_HOST')
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -89,8 +92,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=1),
 }
 
 ROOT_URLCONF = 'project.urls'

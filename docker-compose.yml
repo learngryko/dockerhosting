@@ -48,6 +48,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      HOST_IP: ${HOST_IP}
       DOCKER_HOST: "tcp://dind:2375"
     depends_on:
       - db
@@ -64,8 +65,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Route all /api requests to django
-      - "traefik.http.routers.django.rule=Host(`localhost`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.django.entrypoints=websecure"
+      - "traefik.http.routers.django.rule=Host(`${HOST_IP}`) && PathPrefix(`/api`, `/proxy`)"
       - "traefik.http.routers.django.tls=true"
       # This sets the internal service port
       - "traefik.http.services.django.loadbalancer.server.port=8000"
@@ -79,18 +79,18 @@ services:
       - ./frontend:/app
     environment:
       DEBUG: 1
-      API_URL: http://django:8000/api/
+      HOST_IP: ${HOST_IP}
+      API_URL: ${NEXT_PUBLIC_BACKEND_URL}
     networks:
       - app-network
     expose:
       - "3000"
     labels:
       - "traefik.enable=true"
-      # Root path goes to next (e.g., `https://yourdomain.com/`)
-      - "traefik.http.routers.next.rule=Host(`{HOST_IP}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.next.entrypoints=websecure"
-      - "traefik.http.routers.next.tls=true"
-      - "traefik.http.services.next.loadbalancer.server.port=3000"
+      - "traefik.http.routers.nextjs.rule=Host(`${HOST_IP}`) && PathPrefix(`/app`)"
+      - "traefik.http.routers.nextjs.entrypoints=websecure"
+      - "traefik.http.routers.nextjs.tls=true"
+      - "traefik.http.services.nextjs.loadbalancer.server.port=3000"
 
   # Traefik Reverse Proxy
   traefik:
@@ -106,27 +106,6 @@ services:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml
     networks:
       - app-network
-
-  # Optional: If you still want NGINX inside network, remove host ports
-  # and let Traefik route to it. But this is unnecessary if Next + Django
-  # suffice. If you do keep it, add labels for Traefik routing:
-  # nginx:
-  #   image: nginx:latest
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-  #     - ./nginx/certificates:/etc/ssl/certs
-  #     - ./frontend/build:/usr/share/nginx/html
-  #   networks:
-  #     - app-network
-  #   expose:
-  #     - "443"
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.nginx.rule=Host(`yourdomain.com`)"
-  #     - "traefik.http.routers.nginx.entrypoints=websecure"
-  #     - "traefik.http.routers.nginx.tls=true"
-  #     - "traefik.http.services.nginx.loadbalancer.server.port=443"
-
 
 volumes:
   postgres_data:

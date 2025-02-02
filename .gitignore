@@ -1,5 +1,6 @@
 #Project specific
 */repos
+*/repositories
 
 #Environment variables
 .env
@@ -34,7 +35,6 @@ db.sqlite3
 media/
 staticfiles/
 *.DS_Store
-
 
 
 # Coverage reports

@@ -23,4 +23,7 @@ urlpatterns = [
     path('api/containers/<str:project_name>/', ListContainersView.as_view(), name='list_containers_project'),
     path('api/containers/<str:container_id>/start/', StartContainerView.as_view(), name='start_container'),
     path('api/containers/<str:container_id>/stop/', StopContainerView.as_view(), name='stop_container'),
+    
+    path('proxy/<str:container_name>/<path:path>', ContainerProxyView.as_view(), name='container-proxy'),
+    path('proxy/<str:container_name>/', ContainerProxyView.as_view(), name='container-proxy-root'),
 ]
