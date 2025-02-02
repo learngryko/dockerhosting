@@ -73,8 +73,9 @@ services:
       - ./frontend:/app
     environment:
       DEBUG: ${NEXT_DEBUG}
-      HOST_IP: ${HOST_IP}
-      API_URL: ${NEXT_PUBLIC_BACKEND_URL}
+      NEXT_PUBLIC_HOST_IP: ${HOST_IP}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_BACKEND_URL}
+
     networks:
       - app-network
     expose:
