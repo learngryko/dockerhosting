@@ -115,8 +115,6 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
   };
 
   // Debounce the search input to optimize performance
-  // You can use lodash's debounce or implement your own
-  // For simplicity, we'll implement a simple debounce using useEffect
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>(searchTerm);
 
   useEffect(() => {
@@ -135,7 +133,8 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white w-11/12 md:w-3/4 lg:w-1/2 h-5/6 rounded-lg shadow-lg overflow-y-auto relative">
+      {/* Modal container updated to nearly full viewport dimensions */}
+      <div className="bg-white w-[98vw] h-[98vh] rounded-lg shadow-lg overflow-hidden relative">
         <button 
           onClick={onClose} 
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
@@ -143,22 +142,22 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
         >
           <XMarkIcon className="h-6 w-6" />
         </button>
-        <div className="p-6">
+        <div className="p-6 h-full flex flex-col">
           <h2 className="text-2xl font-bold mb-4">Project: {project.name}</h2>
           {error && <div className="text-red-500 mb-4">{error}</div>}
           {isFetchingFiles ? (
-            <div className="flex justify-center items-center h-64">
+            <div className="flex justify-center items-center flex-1">
               <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
               </svg>
             </div>
           ) : (
-            <div className="flex flex-col md:flex-row">
-              {/* Files Tree */}
-              <div className="md:w-1/3 mb-4 md:mb-0">
+            <div className="flex flex-1 overflow-hidden">
+              {/* Files Tree Section */}
+              <div className="w-full md:w-1/3 mb-4 md:mb-0 overflow-y-auto pr-4">
                 <h3 className="text-xl font-semibold mb-2">Files</h3>
-                <div className="border rounded-lg p-2 max-h-64 overflow-y-auto">
+                <div className="border rounded-lg p-2 max-h-full">
                   {/* Search Input */}
                   <input
                     type="text"
@@ -182,8 +181,8 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
                 </div>
               </div>
 
-              {/* File Content Editor */}
-              <div className="md:w-2/3 md:pl-4 flex flex-col">
+              {/* Code Editor Section */}
+              <div className="w-full md:w-2/3 flex flex-col">
                 {selectedFile ? (
                   <>
                     <h3 className="text-xl font-semibold mb-2">Editing: {selectedFile}</h3>
@@ -203,7 +202,9 @@ const ProjectConfigModal: React.FC<ProjectConfigModalProps> = ({ project, onClos
                     </button>
                   </>
                 ) : (
-                  <div className="text-gray-500 flex-1 flex items-center justify-center">Select a file to view and edit its content.</div>
+                  <div className="text-gray-500 flex-1 flex items-center justify-center">
+                    Select a file to view and edit its content.
+                  </div>
                 )}
               </div>
             </div>
