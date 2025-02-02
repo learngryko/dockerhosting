@@ -236,17 +236,7 @@ class CreateContainerView(APIView):
                 image=f"{project_name}_image",
                 detach=True,
                 ports={f"{port}/tcp": port},
-                name=container_name,
-                labels={
-                    "traefik.enable": "true",
-                    # use the container_name as part of the router's name
-                    f"traefik.http.routers.webhelloword_container.priority": "100",
-                    # f"traefik.http.routers.{container_name}.rule": f"Host(`{os.environ.get('HOST_IP')}`) && PathPrefix(`/{container_name}`)",
-                    "traefik.http.routers.webhelloword_container.rule": "Host(`localhost`) && PathPrefix(`/webhelloword_container`)",
-                    f"traefik.http.routers.webhelloword_container.entrypoints": "websecure",
-                    f"traefik.http.routers.webhelloword_container.tls": "true",
-                    f"traefik.http.services.webhelloword_container.loadbalancer.server.port": "8080"
-                },
+                name=container_name
             )
 
             Container.objects.create(
