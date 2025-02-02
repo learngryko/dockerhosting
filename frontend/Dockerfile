@@ -1,14 +1,6 @@
 # Use a Node.js image as the base
 FROM node:18
 
-ARG DEBUG
-ARG HOST_IP
-ARG API_URL
-
-ENV DEBUG: ${NEXT_DEBUG}
-ENV HOST_IP: ${HOST_IP}
-ENV API_URL: ${NEXT_PUBLIC_BACKEND_URL}
-
 # Set the working directory in the container
 WORKDIR /app
 

@@ -25,7 +25,6 @@ DEBUG = False
 DEBUG = os.environ.get('DEBUG')
 DIND_URL=os.environ.get('DOCKER_HOST')
 
-
 ALLOWED_HOSTS = [
     HOST_IP,
     "192.168.0.100",
