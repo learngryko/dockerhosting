@@ -24,11 +24,11 @@ services:
       - app-network
     expose:
       - "2375"
-    # NOTE: Ideally do NOT expose 2375 on host in production, it's insecure
     ports:
       - "2375:2375"
     volumes:
       - dind_data:/var/lib/docker
+      - repos_data:/app/repos
 
   # Django Backend
   django:
@@ -42,6 +42,7 @@ services:
         DJANGO_SECRET: ${DJANGO_SECRET}
     volumes:
       - ./backend:/app
+      - repos_data:/app/repos
     environment:
       DEBUG: 1
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -64,10 +65,8 @@ services:
             python manage.py runserver 0.0.0.0:8000"
     labels:
       - "traefik.enable=true"
-      # Route all /api requests to django
       - "traefik.http.routers.django.rule=Host(`${HOST_IP}`) && PathPrefix(`/api`, `/proxy`)"
       - "traefik.http.routers.django.tls=true"
-      # This sets the internal service port
       - "traefik.http.services.django.loadbalancer.server.port=8000"
 
   # Next Frontend
@@ -110,6 +109,7 @@ services:
 volumes:
   postgres_data:
   dind_data:
+  repos_data:
 
 networks:
   app-network:

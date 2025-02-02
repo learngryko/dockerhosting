@@ -220,10 +220,12 @@ class CreateContainerView(APIView):
 
             logger.info(f"Path to dockerfile: {dockerfile_path}")
 
+            # Always rebuild the image without cache
             image, build_logs = client.images.build(
                 path=build_context_path,
                 dockerfile=dockerfile_path,
-                tag=f"{project_name}_image"
+                tag=f"{project_name}_image",
+                nocache=True
             )
             for log in build_logs:
                 logger.info(log)
@@ -247,7 +249,6 @@ class CreateContainerView(APIView):
                 },
             )
 
-
             Container.objects.create(
                 project=project,
                 container_id=container.id,
@@ -270,6 +271,7 @@ class CreateContainerView(APIView):
         except Exception as e:
             logger.error(f"An error occurred: {str(e)}")
             return Response({'status': 'error', 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ListContainersView(APIView):
