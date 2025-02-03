@@ -22,7 +22,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = os.environ.get('DJANGO_SECRET')
 HOST_IP = os.environ.get('HOST_IP')
 DEBUG = False
-DEBUG = os.environ.get('DEBUG')
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1')
 DIND_URL=os.environ.get('DOCKER_HOST')
 
 ALLOWED_HOSTS = [
