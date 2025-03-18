@@ -80,13 +80,19 @@ services:
       - app-network
     expose:
       - "3000"
+    labels:
+      - "traefik.enable=true"
+      # Root path goes to next (e.g., `https://yourdomain.com/`)
+      - "traefik.http.routers.next.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.next.entrypoints=websecure"
+      - "traefik.http.routers.next.tls=true"
+      - "traefik.http.services.next.loadbalancer.server.port=3000"
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:latest
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v2.9
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
     ports:
       - "80:80"
       - "443:443"
