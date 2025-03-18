@@ -64,7 +64,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Route all /api requests to django
-      - "traefik.http.routers.django.rule=Host(`192.168.0.100`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.django.rule=Host(`localhost`) && PathPrefix(`/api`)"
       - "traefik.http.routers.django.entrypoints=websecure"
       - "traefik.http.routers.django.tls=true"
       # This sets the internal service port
