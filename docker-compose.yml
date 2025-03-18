@@ -87,7 +87,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Root path goes to next (e.g., `https://yourdomain.com/`)
-      - "traefik.http.routers.next.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.next.rule=Host(`{HOST_IP}`) && PathPrefix(`/`)"
       - "traefik.http.routers.next.entrypoints=websecure"
       - "traefik.http.routers.next.tls=true"
       - "traefik.http.services.next.loadbalancer.server.port=3000"
