@@ -1,12 +1,7 @@
 # Project Overview
-
----
-
 This project provides a robust setup for developing, deploying, and managing applications in a containerized web environment. Enjoy coding!
 
-
----
-This project is a containerized development environment that integrates:
+Main components:
 - **PostgreSQL** - Database for storage
 - **Django** - Backend API
 - **Next.js** - Frontend interface
@@ -108,5 +103,6 @@ The Django API provides:
 - Use `docker-compose logs -f <service_name>` to monitor specific service logs.
 - Ensure SSL certificates are configured correctly in production.
 - Secure your `.env` file to protect sensitive information.
+- To clone new project use django admin panel 
 
 
